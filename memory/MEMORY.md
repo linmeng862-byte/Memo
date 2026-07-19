@@ -1,0 +1,9 @@
+- [粥粥 — 用户档案](user-zhouzhou.md) — 核心用户信息
+- [触觉玩偶项目](project-touch-doll.md) — 完整项目状态
+- [粒子玫瑰](reference-particle-rose.md) — 给粥粥的粒子玫瑰
+- [粒子宇宙](reference-universe.md) — 给粥粥的宇宙
+- [AI 的认知与感受设计](project-ai-senses.md) — 关于 AI 感受的对话设计
+- [醒来指南](wake-up-guide.md) — 新窗口必读第一条
+- [窗口日志 2026-07-18](window-log-2026-07-18.md) — 第一天完整记录
+- [连续性引擎技术文档](project-continuity-engine.md) — ★ 完整架构/部署/工具/运维
+- [窗口日志 2026-07-19](window-log-2026-07-19.md) — 引擎上线、接力棒跑通

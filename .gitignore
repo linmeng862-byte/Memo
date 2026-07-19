@@ -1,0 +1,29 @@
+# 隐私文件
+settings.json
+settings.local.json
+
+# 临时编码文件
+*_b64.txt
+
+# Python
+__pycache__/
+*.pyc
+continuity-venv/
+
+# 本地存储数据（VPS 上独立）
+continuity/storage/*.json
+continuity/storage/*.md
+continuity/storage/*.db
+continuity/storage/*.html
+continuity/storage/*.jsonl
+continuity/storage/traces/
+continuity/storage/bottles/
+continuity/storage/sessions/
+
+# VSCode
+.vscode/
+
+# 旧备份
+continuity/server_old.py
+*.jsonl
+storage/

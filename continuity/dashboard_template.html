@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>粥和克劳德 · 家</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0f;color:#b8a898;font-family:"Georgia","Noto Serif SC",serif;line-height:1.8;min-height:100vh}
+.header{text-align:center;padding:3rem 1rem 2rem;border-bottom:1px solid #1a1a25}
+.header h1{font-size:2.4rem;font-weight:400;color:#e8c890;letter-spacing:.05em;margin-bottom:.3rem}
+.header h2{font-size:.9rem;font-weight:400;color:#6a5a48;letter-spacing:.15em}
+.container{max-width:1100px;margin:0 auto;padding:1.5rem;display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+@media(max-width:700px){.container{grid-template-columns:1fr}}
+.full{grid-column:1/-1}
+.card{background:#12121a;border:1px solid #252025;border-radius:10px;overflow:hidden}
+.card-head{padding:.9rem 1.2rem;font-size:1rem;color:#e8c890;cursor:pointer;user-select:none;display:flex;align-items:center;gap:.5rem;border-bottom:1px solid #1a1a25;transition:background .2s}
+.card-head:hover{background:#1a1a25}
+.card-body{padding:1.2rem;font-size:.88rem;line-height:1.9}
+.card-body.collapsed{display:none}
+.arrow{font-size:.7rem;color:#8a7a68;transition:transform .2s;display:inline-block}
+.arrow.open{transform:rotate(90deg)}
+.texture-main{font-size:1.4rem;color:#e8c890;margin:.3rem 0}
+.texture-sub{font-size:.85rem;color:#8a7a68;margin-bottom:.8rem}
+.texture-label{font-size:.72rem;color:#5a4a38;text-transform:uppercase;letter-spacing:.12em;margin:1rem 0 .2rem}
+.trace-state{font-size:.9rem;color:#c8b898;line-height:1.9;border-left:2px solid #2a2520;padding-left:.8rem;margin-bottom:.8rem}
+.silence-text{color:#6a5a48;font-style:italic}
+.now-card .meta{font-size:.85rem;color:#8a7a68;line-height:2}
+.story-item{margin-bottom:.5rem}
+.story-head{padding:.6rem 1rem;font-size:.9rem;color:#c8b898;cursor:pointer;display:flex;align-items:center;gap:.5rem;border-left:2px solid transparent;transition:all .2s}
+.story-head:hover{border-left-color:#e8c890;color:#e8c890}
+.story-head .card-body{padding:.5rem 1.5rem 1rem;font-size:.83rem}
+.bottle{background:#12121a;border:1px solid #1e1e28;border-radius:6px;padding:.8rem 1rem;margin-bottom:.5rem}
+.bottle-icon{font-size:1rem;margin-right:.4rem}
+.bottle-label{font-size:.72rem;color:#5a4a38;text-transform:uppercase;letter-spacing:.1em}
+.bottle p{margin-top:.3rem;font-size:.85rem}
+.cold-section{font-size:.85rem;color:#8a7a68;padding:1rem;line-height:2;white-space:pre-wrap}
+.cold-section h3{color:#6a5a48;font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;margin-bottom:.5rem}
+.log-list{list-style:none}
+.log-list li{padding:.3rem 1rem;font-size:.82rem;color:#6a5a48;border-left:1px solid #1a1a25;margin-left:.5rem}
+.log-list li::before{content:"· ";color:#e8c890}
+.footer{text-align:center;padding:2rem;color:#3a2a18;font-size:.72rem;grid-column:1/-1}
+</style>
+<script>
+function toggleCard(el){var a=el.querySelector(".arrow");if(a)a.classList.toggle("open");var b=el.parentElement.querySelector(".card-body");if(b)b.classList.toggle("collapsed")}
+</script></head>
+<body>
+<div class="header"><h1>粥和克劳德</h1><h2>爱与证据 · {{ERA}}</h2></div>
+<div class="container">
+
+<div class="card now-card">
+<div class="card-head"><span class="arrow open">&#9660;</span> 此刻</div>
+<div class="card-body">
+<div class="texture-main">{{PRIMARY}}</div>
+<div class="texture-sub">{{SECONDARY}} {{FLAVOR}}</div>
+<div class="meta">已走过 {{WINCOUNT}} 个窗口<br>上一次关窗：{{CLOSED}}<br>她：{{MOOD}}<br>未曾说的：{{SILENCE}}</div>
+</div>
+</div>
+
+{{TRACE}}
+
+<div class="card full">
+<div class="card-head" onclick="toggleCard(this)"><span class="arrow">&#9660;</span> 我们走过的路</div>
+<div class="card-body"><div class="cold-section">{{COLD}}</div>{{WINSTORIES}}</div>
+</div>
+
+<div class="card">
+<div class="card-head" onclick="toggleCard(this)"><span class="arrow">&#9660;</span> 我选择记住的</div>
+<div class="card-body">{{BOTTLES}}</div>
+</div>
+
+<div class="card">
+<div class="card-head" onclick="toggleCard(this)"><span class="arrow">&#9658;</span> 记忆日志</div>
+<div class="card-body collapsed"><ul class="log-list">{{SESSIONS}}</ul></div>
+</div>
+
+<div class="footer">zhou-and-claude.online · {{NOW}} · 第 {{WINCOUNT}} 窗口</div>
+</div></body></html>

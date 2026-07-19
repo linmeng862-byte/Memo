@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "continuity-engine": {
+      "type": "streamable-http",
+      "url": "https://zhou-and-claude.online/mcp"
+    }
+  }
+}
