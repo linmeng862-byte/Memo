@@ -3,6 +3,10 @@
     "continuity-engine": {
       "type": "streamable-http",
       "url": "https://zzloveclaude.zeabur.app/mcp"
+    },
+    "ombre-brain": {
+      "type": "streamable-http",
+      "url": "https://ye-ombre-brain.zeabur.app/mcp"
     }
   }
 }

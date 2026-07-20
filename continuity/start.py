@@ -5,7 +5,11 @@ from server import mcp
 import uvicorn
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-port = int(os.environ.get('PORT', 8001))
+# Zeabur 环境变量 PORT 有时未被解析（仍是 ${WEB_PORT} 字面量），兜底 8001
+_port_raw = os.environ.get('PORT', '8001')
+if _port_raw.startswith('$'):
+    _port_raw = '8001'
+port = int(_port_raw)
 
 # 关键：让 FastMCP 接受所有 Host 头（Zeabur Caddy 代理会改 Host）
 mcp.settings.host = "0.0.0.0"
