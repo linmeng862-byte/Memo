@@ -544,35 +544,7 @@ if _cp_raw.startswith('$'):
 CONTINUITY_PORT = int(_cp_raw)
 CONTINUITY_TRANSPORT = os.environ.get("CONTINUITY_TRANSPORT", "stdio")
 
-# ── 根路由 ──────────────────────────────────────────
-
-@mcp.custom_route("/", methods=["GET"])
-async def root_redirect(request):
-    from starlette.responses import JSONResponse
-    cont = load_continuity()
-    return JSONResponse({
-        "name": "continuity-engine",
-        "status": "ok",
-        "totalWindows": cont.get("totalWindows", 0),
-        "lastClosed": cont.get("lastWindowClosed", ""),
-        "endpoints": {
-            "mcp": "/mcp",
-            "dashboard": "/dashboard"
-        }
-    })
-
-
-@mcp.custom_route("/dashboard", methods=["GET"])
-async def dashboard(request):
-    from starlette.responses import HTMLResponse
-    try:
-        from dashboard_v2 import render
-        render()
-        html = (STORAGE_DIR / "dashboard.html").read_text("utf-8")
-        return HTMLResponse(html)
-    except Exception:
-        return HTMLResponse("<h1>Dashboard 还没准备好</h1><p>还没有窗口关过，接力棒是空的。</p>", status_code=200)
-
+# 自定义 HTTP 路由（/ 和 /dashboard）在 start.py 里通过 Starlette Route 注册
 
 @mcp.tool()
 async def leave_texture(

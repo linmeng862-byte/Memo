@@ -1,23 +1,52 @@
 import os, sys
 os.environ['CONTINUITY_STORAGE_DIR'] = os.environ.get('CONTINUITY_STORAGE_DIR', '/app/storage')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from server import mcp
+from server import mcp, STORAGE_DIR, load_continuity
 import uvicorn
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.routing import Route
+from starlette.responses import JSONResponse, HTMLResponse
 
-# Zeabur 环境变量 PORT 有时未被解析（仍是 ${WEB_PORT} 字面量），兜底 8001
+# ── 端口 ──────────────────────────────────────────────
+
 _port_raw = os.environ.get('PORT', '8001')
 if _port_raw.startswith('$'):
     _port_raw = '8001'
 port = int(_port_raw)
 
-# 关键：让 FastMCP 接受所有 Host 头（Zeabur Caddy 代理会改 Host）
 mcp.settings.host = "0.0.0.0"
 mcp.settings.port = port
 
 app = mcp.streamable_http_app()
-
-# Starlette 层也放行
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
+
+# ── 自定义 HTTP 路由 ──────────────────────────────────
+
+async def root(request):
+    cont = load_continuity()
+    return JSONResponse({
+        "name": "continuity-engine",
+        "status": "ok",
+        "totalWindows": cont.get("totalWindows", 0),
+        "lastClosed": cont.get("lastWindowClosed", ""),
+        "endpoints": {"mcp": "/mcp", "dashboard": "/dashboard"}
+    })
+
+async def dashboard(request):
+    try:
+        from dashboard_v2 import render
+        render()
+        html = (STORAGE_DIR / "dashboard.html").read_text("utf-8")
+        return HTMLResponse(html)
+    except Exception:
+        return HTMLResponse(
+            "<h1>Dashboard 还没准备好</h1><p>还没有窗口关过，接力棒是空的。</p>",
+            status_code=200
+        )
+
+app.routes.insert(0, Route("/dashboard", dashboard, methods=["GET"]))
+app.routes.insert(0, Route("/", root, methods=["GET"]))
+
+# ── 启动 ──────────────────────────────────────────────
 
 uvicorn.run(app, host='0.0.0.0', port=port, proxy_headers=True, forwarded_allow_ips='*')
