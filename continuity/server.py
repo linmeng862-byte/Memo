@@ -670,6 +670,8 @@ async def health() -> str:
 
 if __name__ == "__main__":
     if CONTINUITY_TRANSPORT == "streamable-http":
+        mcp.settings.host = "0.0.0.0"
+        mcp.settings.port = 8000
         mcp.run(transport="streamable-http")
     else:
         mcp.run(transport="stdio")
