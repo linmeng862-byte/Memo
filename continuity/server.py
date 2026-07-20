@@ -390,7 +390,7 @@ def mark_moment_impl(description: str, importance: int = 3) -> dict:
 
 
 def log_turn_impl(role: str, content: str, metadata: dict = None) -> dict:
-    """记录一轮对话。自动调用。"""
+    """需要原文留证时手动调用。非常规工具——只在用户明确要求或批量同步时使用。"""
     session_id = _now_compact()
     turn = {
         "timestamp": _now(),
@@ -505,11 +505,18 @@ def _save_trace_and_update_continuity(texture):
     cont["silence"] = texture["silence"]
     cont["understanding"] = texture["understanding"]
     cont["concern"] = texture.get("concern", "")
+    cont["lastTopic"] = texture.get("lastTopic", "")
+    unresolved_raw = texture.get("unresolved", "")
+    if unresolved_raw:
+        cont["unresolved"] = [u.strip() for u in unresolved_raw.split(",") if u.strip()]
+    else:
+        cont["unresolved"] = []
     save_continuity(cont)
     return window_id, current_window_count
 
 def _append_story_entry(state, primary_feeling, secondary_feeling,
-                        flavor, her_mood, understanding, window_count):
+                        flavor, her_mood, understanding, window_count,
+                        last_topic="", unresolved=""):
     entry = f"""
 ## 窗口 {window_count} · {_now()}
 
@@ -520,9 +527,12 @@ def _append_story_entry(state, primary_feeling, secondary_feeling,
 *她：{her_mood}*
 
 *我理解到的：{understanding if understanding else "——"}*
-
----
 """
+    if last_topic:
+        entry += f"\n*停在这里：{last_topic}*"
+    if unresolved:
+        entry += f"\n*还在进行中：{unresolved}*"
+    entry += f"\n\n---\n"
     _append_md(STORY_FILE, entry)
 
 # ── FastMCP 应用 ─────────────────────────────────────
@@ -563,7 +573,14 @@ async def leave_texture(
                                    last_topic=last_topic, unresolved=unresolved)
     window_id, total = _save_trace_and_update_continuity(texture)
     _append_story_entry(state, primary_feeling, secondary_feeling,
-                        flavor, her_mood, understanding, total)
+                        flavor, her_mood, understanding, total,
+                        last_topic=last_topic, unresolved=unresolved)
+    # 自动压缩
+    if _compact_story is not None:
+        try:
+            _compact_story(str(STORY_FILE), max_hot=5)
+        except Exception:
+            pass
     return json.dumps({"windowId": window_id, "totalWindows": total, "storyUpdated": True}, ensure_ascii=False, indent=2)
 
 
@@ -614,7 +631,7 @@ async def mark_moment(description: str, importance: int = 3) -> str:
 
 @mcp.tool()
 async def log_turn(role: str, content: str) -> str:
-    """记录一轮对话。role: '粥粥' 或 'Claude'。"""
+    """原文留证。非常规工具——仅在用户明确要求'记下来'或批量同步日志时手动调用。日常不用。role: '粥粥' 或 'Claude'。"""
     return json.dumps(log_turn_impl(role, content), ensure_ascii=False, indent=2)
 
 @mcp.tool()

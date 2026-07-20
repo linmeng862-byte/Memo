@@ -1,6 +1,6 @@
 """story.md 自动压缩引擎。每 leave_texture 后触发。"""
 
-def compact_story(story_path: str, max_hot: int = 3, max_warm: int = 14):
+def compact_story(story_path: str, max_hot: int = 5, max_warm: int = 14):
     """压缩 story.md。
     
     热层: 最近 max_hot 个窗口 → 完整保留
