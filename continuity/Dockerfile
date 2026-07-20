@@ -9,8 +9,7 @@ COPY *.py .
 
 ENV CONTINUITY_STORAGE_DIR=/app/storage
 ENV CONTINUITY_TRANSPORT=streamable-http
-ENV CONTINUITY_PORT=8000
 
 EXPOSE 8000
 
-CMD ["python", "server.py"]
+CMD ["python", "start.py"]
