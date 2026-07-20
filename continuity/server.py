@@ -672,6 +672,6 @@ if __name__ == "__main__":
     if CONTINUITY_TRANSPORT == "streamable-http":
         import uvicorn
         app = mcp.streamable_http_app()
-        uvicorn.run(app, host="0.0.0.0", port=CONTINUITY_PORT)
+        uvicorn.run(app, host="0.0.0.0", port=CONTINUITY_PORT, proxy_headers=True, forwarded_allow_ips="*")
     else:
         mcp.run(transport="stdio")
