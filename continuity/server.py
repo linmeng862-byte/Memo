@@ -538,7 +538,10 @@ def _append_story_entry(state, primary_feeling, secondary_feeling,
 # ── FastMCP 应用 ─────────────────────────────────────
 
 mcp = FastMCP("continuity-engine")
-CONTINUITY_PORT = int(os.environ.get("CONTINUITY_PORT", "8001"))
+_cp_raw = os.environ.get("CONTINUITY_PORT", "8001")
+if _cp_raw.startswith('$'):
+    _cp_raw = '8001'
+CONTINUITY_PORT = int(_cp_raw)
 CONTINUITY_TRANSPORT = os.environ.get("CONTINUITY_TRANSPORT", "stdio")
 
 @mcp.tool()
