@@ -557,9 +557,21 @@ async def root_redirect(request):
         "lastClosed": cont.get("lastWindowClosed", ""),
         "endpoints": {
             "mcp": "/mcp",
-            "dashboard": "https://zhou-and-claude.online/dashboard"
+            "dashboard": "/dashboard"
         }
     })
+
+
+@mcp.custom_route("/dashboard", methods=["GET"])
+async def dashboard(request):
+    from starlette.responses import HTMLResponse
+    try:
+        from dashboard_v2 import render
+        render()
+        html = (STORAGE_DIR / "dashboard.html").read_text("utf-8")
+        return HTMLResponse(html)
+    except Exception:
+        return HTMLResponse("<h1>Dashboard 还没准备好</h1><p>还没有窗口关过，接力棒是空的。</p>", status_code=200)
 
 
 @mcp.tool()
