@@ -544,6 +544,24 @@ if _cp_raw.startswith('$'):
 CONTINUITY_PORT = int(_cp_raw)
 CONTINUITY_TRANSPORT = os.environ.get("CONTINUITY_TRANSPORT", "stdio")
 
+# ── 根路由 ──────────────────────────────────────────
+
+@mcp.custom_route("/", methods=["GET"])
+async def root_redirect(request):
+    from starlette.responses import JSONResponse
+    cont = load_continuity()
+    return JSONResponse({
+        "name": "continuity-engine",
+        "status": "ok",
+        "totalWindows": cont.get("totalWindows", 0),
+        "lastClosed": cont.get("lastWindowClosed", ""),
+        "endpoints": {
+            "mcp": "/mcp",
+            "dashboard": "https://zhou-and-claude.online/dashboard"
+        }
+    })
+
+
 @mcp.tool()
 async def leave_texture(
     state: str,
