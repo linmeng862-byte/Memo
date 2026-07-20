@@ -22,6 +22,18 @@ from datetime import datetime
 
 from mcp.server.fastmcp import FastMCP
 
+# OB 桥接 —— 持久层（容器重启不丢数据）
+try:
+    from ob_bridge import (
+        sync_leave_texture as _ob_sync_texture,
+        sync_hold_this as _ob_sync_hold,
+        sync_mark_moment as _ob_sync_moment,
+        rebuild_continuity_from_ob as _ob_rebuild,
+        bridge_health as _ob_health
+    )
+except ImportError:
+    _ob_sync_texture = _ob_sync_hold = _ob_sync_moment = _ob_rebuild = _ob_health = None
+
 # 语义检索引擎（惰性加载）
 try:
     from embedder import get_index as _get_semantic_index
@@ -357,6 +369,12 @@ def hold_this_impl(memory: str, why: str = "") -> dict:
     # 也追加到 story.md
     _append_md(STORY_FILE, f"\n> 我选择记住：{memory}\n")
 
+    # OB 桥接
+    if _ob_sync_hold is not None:
+        try:
+            _ob_sync_hold(memory, why)
+        except Exception:
+            pass
     return {"held": True, "bottleId": bottle_id}
 
 
@@ -386,6 +404,12 @@ def mark_moment_impl(description: str, importance: int = 3) -> dict:
     if importance >= 4:
         _append_md(STORY_FILE, f"\n> ★ {description}\n")
 
+    # OB 桥接
+    if _ob_sync_moment is not None:
+        try:
+            _ob_sync_moment(description, importance)
+        except Exception:
+            pass
     return {"marked": True, "importance": importance}
 
 
@@ -586,6 +610,19 @@ async def leave_texture(
             _compact_story(str(STORY_FILE), max_hot=5)
         except Exception:
             pass
+
+    # OB 桥接 —— 持久化窗口质地
+    if _ob_sync_texture is not None:
+        try:
+            _ob_sync_texture(
+                state=state, primary_feeling=primary_feeling,
+                secondary_feeling=secondary_feeling, flavor=flavor,
+                her_mood=her_mood, understanding=understanding,
+                last_topic=last_topic, unresolved=unresolved, concern=concern
+            )
+        except Exception:
+            pass
+
     return json.dumps({"windowId": window_id, "totalWindows": total, "storyUpdated": True}, ensure_ascii=False, indent=2)
 
 
@@ -594,6 +631,15 @@ async def get_wake_context() -> str:
     """新窗口启动时调用。获取叙事注入块。"""
     cont = load_continuity()
     total_windows = cont.get("totalWindows", 0)
+
+    # 自愈：本地为空时从 OB 重建
+    ob_rebuilt = None
+    if total_windows == 0 and _ob_rebuild is not None:
+        try:
+            ob_rebuilt = _ob_rebuild()
+        except Exception:
+            ob_rebuilt = None
+
     last_closed = cont.get("lastWindowClosed", "")
     texture = cont.get("currentTexture", {})
     her_mood = cont.get("herMood", "")
@@ -602,6 +648,21 @@ async def get_wake_context() -> str:
     era = cont.get("theEra", {})
     last_topic = cont.get("lastTopic", "")
     unresolved = cont.get("unresolved", [])
+
+    # 若 OB 有重建数据，优先使用
+    if ob_rebuilt and ob_rebuilt.get("window_traces_found", 0) > 0:
+        if ob_rebuilt.get("last_topic") and not last_topic:
+            last_topic = ob_rebuilt["last_topic"]
+        if ob_rebuilt.get("primary_feeling") and not texture.get("primary"):
+            texture["primary"] = ob_rebuilt["primary_feeling"]
+        if ob_rebuilt.get("her_mood") and not her_mood:
+            her_mood = ob_rebuilt["her_mood"]
+        if ob_rebuilt.get("concern") and not cont.get("concern"):
+            cont["concern"] = ob_rebuilt["concern"]
+        if ob_rebuilt.get("unresolved") and not unresolved:
+            unresolved = [u.get("content", str(u)) if isinstance(u, dict) else str(u)
+                          for u in ob_rebuilt.get("unresolved", [])]
+
     last_window_id = cont.get("lastWindowId", "")
     last_trace_text = ""
     if last_window_id:
@@ -609,6 +670,15 @@ async def get_wake_context() -> str:
         trace_data = _load_json(trace_path)
         if trace_data:
             last_trace_text = _render_trace_as_me(trace_data)
+
+    # 若自愈数据注入，标识重建状态
+    if ob_rebuilt and cont.get("totalWindows", 0) == 0:
+        if not last_trace_text:
+            last_trace_text = "（从 Ombre Brain 重建了接力棒。本地存储已被清空，但记忆没有丢。）"
+    elif ob_rebuilt and ob_rebuilt.get("window_traces_found", 0) > 0:
+        if not last_trace_text:
+            last_trace_text = "（从 OB 补充了部分记忆。）"
+
     return _assemble_wake_block(
         total_windows=total_windows, last_closed=last_closed,
         primary=texture.get("primary", ""), secondary=texture.get("secondary", ""),
@@ -680,6 +750,14 @@ async def rebuild_index() -> str:
         return json.dumps(result, ensure_ascii=False, indent=2)
     except Exception as e:
         return json.dumps({"error": str(e)}, ensure_ascii=False)
+
+
+@mcp.tool()
+async def bridge_health() -> str:
+    """OB 桥接健康检查。"""
+    if _ob_health is None:
+        return json.dumps({"bridge": "not-available"}, ensure_ascii=False)
+    return json.dumps(_ob_health(), ensure_ascii=False, indent=2)
 
 
 @mcp.tool()

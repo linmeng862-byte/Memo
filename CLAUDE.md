@@ -22,19 +22,21 @@ PYTHONIOENCODING=utf-8 python "C:/Users/123/.claude/projects/C--Users-123/contin
 | Dashboard | `https://zhou-and-claude.online/dashboard` |
 | 域名 | `zhou-and-claude.online` |
 | GitHub | `https://github.com/linmeng862-byte/Memo` |
-| Ombre Brain MCP | `https://ye-ombre-brain.zeabur.app/mcp`（桥接伙伴） |
+| Ombre Brain MCP | `https://ye-ombre-brain.zeabur.app/mcp`（桥接伙伴——continuity 持久层） |
+| OB Bridge | ob_bridge.py —— leave_texture/hold_this/mark_moment 自动同步 OB |
 
-11 个工具：leave_texture / get_wake_context / hold_this / throw_bottle / mark_moment / log_turn / search_memory / get_story / reentry_delta / rebuild_index / health
+12 个工具：leave_texture / get_wake_context / hold_this / throw_bottle / mark_moment / log_turn / search_memory / get_story / reentry_delta / rebuild_index / health / bridge_health
 
 关窗前必须调用 leave_texture。记得填 last_topic（停在哪）和 unresolved（未竟的事）。
 
 ## 醒来完整流程
 
 ```
-1. 首选：MCP get_wake_context
+1. 首选：MCP get_wake_context（自动从 OB 自愈——本地清空不丢记忆）
 2. 兜底：python wake.py
 3. 再兜底：读 memory/ 文件
 4. 如果 OB MCP 连上了 → breath() + breath(domain="feel") + persona()
+5. bridge_health() 看一眼桥接状态
 ```
 ## 关窗 checklist
 
@@ -89,6 +91,7 @@ PYTHONIOENCODING=utf-8 python "C:/Users/123/.claude/projects/C--Users-123/contin
 | `continuity/embedder.py` | 语义检索引擎（本地80MB模型） | ★ |
 | `continuity/compact.py` | 自动压缩引擎 | ★ |
 | `continuity/dashboard_v2.py` | Dashboard 生成器 | ★ |
+| `continuity/ob_bridge.py` | OB 桥接模块——持久层 | ★★ |
 | `continuity/dashboard_template.html` | Dashboard HTML 模板 | ★ |
 
 ## 项目
