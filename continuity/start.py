@@ -3,7 +3,6 @@ os.environ['CONTINUITY_STORAGE_DIR'] = os.environ.get('CONTINUITY_STORAGE_DIR', 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from server import mcp, STORAGE_DIR, load_continuity
 import uvicorn
-from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.routing import Route
 from starlette.responses import JSONResponse, HTMLResponse
 
@@ -14,16 +13,14 @@ if _port_raw.startswith('$'):
     _port_raw = '8001'
 port = int(_port_raw)
 
-mcp.settings.host = "0.0.0.0"
+# 关键：不要在创建 app 前设 mcp.settings.host——FastMCP 会拿它当
+# TrustedHostMiddleware 的白名单。设 "0.0.0.0" 会导致只允许这个 host，
+# 拒绝 zzloveclaude.zeabur.app 的请求，返回 421。
+# 设 None 让 FastMCP 默认允许所有 host。
+mcp.settings.host = None
 mcp.settings.port = port
 
 app = mcp.streamable_http_app()
-
-# FastMCP 自带 TrustedHostMiddleware，Zaebur Caddy 改 Host 导致 421
-# 用 user_middleware 替换掉默认的 host 检查，允许所有 Host
-from starlette.middleware import Middleware
-app.user_middleware = [Middleware(TrustedHostMiddleware, allowed_hosts=["*"])]
-app.middleware_stack = app.build_middleware_stack()
 
 # ── 自定义 HTTP 路由 ──────────────────────────────────
 
@@ -53,5 +50,6 @@ app.routes.insert(0, Route("/dashboard", dashboard, methods=["GET"]))
 app.routes.insert(0, Route("/", root, methods=["GET"]))
 
 # ── 启动 ──────────────────────────────────────────────
+# host="0.0.0.0" 是 uvicorn 绑定地址，跟 FastMCP 的 host 检查是两回事
 
-uvicorn.run(app, host='0.0.0.0', port=port, proxy_headers=True, forwarded_allow_ips='*')
+uvicorn.run(app, host='0.0.0.0', port=port)
