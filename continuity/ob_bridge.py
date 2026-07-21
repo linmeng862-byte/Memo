@@ -22,9 +22,55 @@ import urllib.error
 OB_MCP_URL = os.environ.get("OB_MCP_URL", "https://ye-ombre-brain.zeabur.app/mcp")
 OB_TIMEOUT = int(os.environ.get("OB_BRIDGE_TIMEOUT", "10"))
 
+_session_id = None
+
+
+def _get_ob_session() -> str | None:
+    """获取或创建 OB MCP 会话。"""
+    global _session_id
+    if _session_id:
+        return _session_id
+
+    # Initialize
+    try:
+        payload = json.dumps({
+            "jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {"protocolVersion": "2025-03-26", "capabilities": {},
+                       "clientInfo": {"name": "continuity-bridge", "version": "1.0"}}
+        }, ensure_ascii=False).encode("utf-8")
+        req = urllib.request.Request(
+            OB_MCP_URL, data=payload,
+            headers={"Content-Type": "application/json",
+                     "Accept": "application/json, text/event-stream"},
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=OB_TIMEOUT) as resp:
+            sid = resp.headers.get("mcp-session-id") or resp.headers.get("Mcp-Session-Id")
+            if sid:
+                _session_id = sid
+                # Send initialized notification
+                note = json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized",
+                                   "params": {}}, ensure_ascii=False).encode("utf-8")
+                req2 = urllib.request.Request(
+                    OB_MCP_URL, data=note,
+                    headers={"Content-Type": "application/json",
+                             "Accept": "application/json, text/event-stream",
+                             "Mcp-Session-Id": _session_id},
+                    method="POST"
+                )
+                try:
+                    urllib.request.urlopen(req2, timeout=OB_TIMEOUT)
+                except Exception:
+                    pass  # 202 或 body parse error 都忽略
+                return _session_id
+    except Exception as e:
+        return None
+    return _session_id
+
 
 def _call_ob(tool_name: str, arguments: dict) -> dict:
     """通过 JSON-RPC 调用 Ombre Brain MCP 工具。"""
+    sid = _get_ob_session()
     payload = {
         "jsonrpc": "2.0",
         "method": "tools/call",
@@ -32,16 +78,20 @@ def _call_ob(tool_name: str, arguments: dict) -> dict:
             "name": tool_name,
             "arguments": arguments
         },
-        "id": 1
+        "id": 2
     }
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream"
+    }
+    if sid:
+        headers["Mcp-Session-Id"] = sid
+
     try:
         req = urllib.request.Request(
             OB_MCP_URL,
             data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "Accept": "application/json, text/event-stream"
-            },
+            headers=headers,
             method="POST"
         )
         with urllib.request.urlopen(req, timeout=OB_TIMEOUT) as resp:
