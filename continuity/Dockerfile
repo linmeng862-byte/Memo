@@ -12,4 +12,4 @@ ENV CONTINUITY_TRANSPORT=streamable-http
 
 EXPOSE 8000
 
-CMD ["python", "start.py"]
+CMD ["python", "server_lite.py"]
