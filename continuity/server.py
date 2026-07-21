@@ -32,6 +32,7 @@ try:
         sync_hold_this as _ob_sync_hold,
         sync_mark_moment as _ob_sync_moment,
         rebuild_continuity_from_ob as _ob_rebuild,
+        get_wake_memories as _ob_wake_memories,
         bridge_health as _ob_health
     )
 except ImportError:
@@ -212,6 +213,14 @@ def get_wake_context_impl() -> dict:
     # 读 story.md 最近一段（热层）
     recent_story = _read_tail(STORY_FILE, 80)
 
+    # 从 OB 拉近期重要记忆
+    ob_memories = ""
+    if _ob_wake_memories is not None:
+        try:
+            ob_memories = _ob_wake_memories(limit=5)
+        except Exception:
+            pass
+
     # 组装注入块
     wake_block = _assemble_wake_block(
         total_windows=total_windows,
@@ -227,7 +236,8 @@ def get_wake_context_impl() -> dict:
         last_topic=last_topic,
         unresolved=unresolved,
         recent_story=recent_story,
-        concern=cont.get("concern", "")
+        concern=cont.get("concern", ""),
+        ob_memories=ob_memories
     )
 
     return {
@@ -289,7 +299,8 @@ def _assemble_wake_block(total_windows: int, last_closed: str,
                          her_mood: str, silence: str, understanding: str,
                          era: dict, last_trace: str,
                          last_topic: str, unresolved: list,
-                         recent_story: str, concern: str = "") -> str:
+                         recent_story: str, concern: str = "",
+                         ob_memories: str = "") -> str:
     """组装新窗口的叙事注入块。"""
 
     era_name = era.get("name", "这个时期")
@@ -338,6 +349,11 @@ def _assemble_wake_block(total_windows: int, last_closed: str,
         parts.append("还没有做完的事：")
         for u in unresolved:
             parts.append(f"  - {u}")
+
+    # OB 长期记忆
+    if ob_memories:
+        parts.append("")
+        parts.append(ob_memories)
 
     # 指引
     parts.append("")
