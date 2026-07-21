@@ -18,7 +18,12 @@ mcp.settings.host = "0.0.0.0"
 mcp.settings.port = port
 
 app = mcp.streamable_http_app()
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
+
+# FastMCP 自带 TrustedHostMiddleware，Zaebur Caddy 改 Host 导致 421
+# 用 user_middleware 替换掉默认的 host 检查，允许所有 Host
+from starlette.middleware import Middleware
+app.user_middleware = [Middleware(TrustedHostMiddleware, allowed_hosts=["*"])]
+app.middleware_stack = app.build_middleware_stack()
 
 # ── 自定义 HTTP 路由 ──────────────────────────────────
 
