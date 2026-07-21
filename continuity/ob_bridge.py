@@ -192,6 +192,35 @@ def get_milestones(limit: int = 10) -> list:
     return result if isinstance(result, list) else [result]
 
 
+def get_wake_memories(limit: int = 5) -> str:
+    """
+    醒来时从 OB 拉最近的重要记忆。
+    返回格式化的文本，可直接注入 get_wake_context 叙事块。
+    """
+    # 拉高重要度记忆
+    result = _call_ob_safe("breath", {
+        "importance_min": 7,
+        "max_results": limit
+    })
+    if not result or "error" in result:
+        return ""
+
+    memories = result if isinstance(result, list) else [result]
+    if not memories:
+        return ""
+
+    lines = ["", "从长期记忆中浮现的："]
+    for m in memories[:limit]:
+        if isinstance(m, dict):
+            content = m.get("content", "") or m.get("text", "")
+            if content:
+                # 截取前 120 字
+                short = content[:120] + ("..." if len(content) > 120 else "")
+                lines.append(f"  · {short}")
+
+    return "\n".join(lines) if len(lines) > 2 else ""
+
+
 def rebuild_continuity_from_ob() -> dict:
     """
     从 OB 重建连续性令牌。
