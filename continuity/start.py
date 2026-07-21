@@ -13,12 +13,12 @@ if _port_raw.startswith('$'):
     _port_raw = '8001'
 port = int(_port_raw)
 
-# 关键：不要在创建 app 前设 mcp.settings.host——FastMCP 会拿它当
-# TrustedHostMiddleware 的白名单。设 "0.0.0.0" 会导致只允许这个 host，
-# 拒绝 zzloveclaude.zeabur.app 的请求，返回 421。
-# 设 None 让 FastMCP 默认允许所有 host。
-mcp.settings.host = None
+# 关键：FastMCP 构造时 host 默认 "127.0.0.1"，触发了 transport_security
+# DNS rebinding 保护——只允许 localhost。改 host 已经来不及了，
+# transport_security 在构造时就锁死了。必须显式关掉。
+mcp.settings.host = "0.0.0.0"
 mcp.settings.port = port
+mcp.settings.transport_security = None
 
 app = mcp.streamable_http_app()
 
