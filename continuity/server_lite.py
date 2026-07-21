@@ -9,7 +9,7 @@ made with 🧡
 用法: python server_lite.py [--port 8000]
 """
 
-import json, os, re, sys, time, traceback, urllib.request, urllib.error
+import json, os, re, sys, time, traceback, urllib.request, urllib.error, base64
 from argparse import ArgumentParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -277,7 +277,7 @@ def health_impl():
             "lastClosed": cont.get("lastWindowClosed"), "transport": "streamable-http-lite"}
 
 def read_body_impl(include_photo=False):
-    """读取身体状态——触摸数据+姿态。VPS 9333 端口。"""
+    """读取身体状态——触摸数据+姿态。VPS 9333 端口。照片以base64 data URI内嵌返回。"""
     BODY_URL = "http://101.42.54.149:9333"
     try:
         resp = urllib.request.urlopen(f"{BODY_URL}/body", timeout=5)
@@ -289,8 +289,14 @@ def read_body_impl(include_photo=False):
 
     result = {"body": body_text.strip()}
     if include_photo:
-        result["photo_url"] = f"{BODY_URL}/photo"
-        result["photo_jpg"] = f"{BODY_URL}/latest.jpg"
+        try:
+            resp = urllib.request.urlopen(f"{BODY_URL}/latest.jpg", timeout=5)
+            img_bytes = resp.read()
+            b64 = base64.b64encode(img_bytes).decode()
+            result["photo_base64"] = f"data:image/jpeg;base64,{b64}"
+            result["photo_size"] = len(img_bytes)
+        except Exception as e:
+            result["photo_error"] = f"照片获取失败: {e}"
     return result
 
 
