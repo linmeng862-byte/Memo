@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from server import mcp, STORAGE_DIR, load_continuity
 import uvicorn
 from starlette.routing import Route
-from starlette.responses import JSONResponse, HTMLResponse
+from starlette.responses import HTMLResponse
 
 # ── 端口 ──────────────────────────────────────────────
 
@@ -25,14 +25,9 @@ app = mcp.streamable_http_app()
 # ── 自定义 HTTP 路由 ──────────────────────────────────
 
 async def root(request):
-    cont = load_continuity()
-    return JSONResponse({
-        "name": "continuity-engine",
-        "status": "ok",
-        "totalWindows": cont.get("totalWindows", 0),
-        "lastClosed": cont.get("lastWindowClosed", ""),
-        "endpoints": {"mcp": "/mcp", "dashboard": "/dashboard"}
-    })
+    # 跟 OB 对齐：根路径 307 重定向到 /dashboard
+    from starlette.responses import RedirectResponse
+    return RedirectResponse(url="/dashboard", status_code=307)
 
 async def dashboard(request):
     try:
