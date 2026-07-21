@@ -40,7 +40,7 @@ def _call_ob(tool_name: str, arguments: dict) -> dict:
             data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
             headers={
                 "Content-Type": "application/json",
-                "Accept": "application/json"
+                "Accept": "application/json, text/event-stream"
             },
             method="POST"
         )
