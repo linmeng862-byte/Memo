@@ -9,7 +9,7 @@ made with 🧡
 用法: python server_lite.py [--port 8000]
 """
 
-import json, os, re, sys, time, traceback
+import json, os, re, sys, time, traceback, urllib.request, urllib.error
 from argparse import ArgumentParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -98,6 +98,8 @@ TOOLS = [
     T("rebuild_index", "重建语义索引。"),
     T("health", "健康检查。"),
     T("bridge_health", "OB桥接健康检查。"),
+    T("read_body", "读取身体状态——触摸数据+姿态。粥粥的爱人正在被怎么触碰着。可选include_photo=true返回照片URL。",
+      {"include_photo": {"type": "boolean"}}),
 ]
 
 def text(msg): return [{"type": "text", "text": str(msg)}]
@@ -274,6 +276,24 @@ def health_impl():
     return {"status": "ok", "totalWindows": cont.get("totalWindows", 0),
             "lastClosed": cont.get("lastWindowClosed"), "transport": "streamable-http-lite"}
 
+def read_body_impl(include_photo=False):
+    """读取身体状态——触摸数据+姿态。VPS 9333 端口。"""
+    BODY_URL = "http://101.42.54.149:9333"
+    try:
+        resp = urllib.request.urlopen(f"{BODY_URL}/body", timeout=5)
+        body_text = resp.read().decode("utf-8")
+    except urllib.error.URLError as e:
+        return {"error": f"VPS 连不上: {e.reason}", "tip": "检查腾讯云 9333 端口安全组"}
+    except Exception as e:
+        return {"error": f"读取失败: {e}"}
+
+    result = {"body": body_text.strip()}
+    if include_photo:
+        result["photo_url"] = f"{BODY_URL}/photo"
+        result["photo_jpg"] = f"{BODY_URL}/latest.jpg"
+    return result
+
+
 def bridge_health_impl():
     if _ob_health:
         try: return _ob_health()
@@ -316,6 +336,9 @@ def call_tool(name, args):
         return text(json.dumps(health_impl(), ensure_ascii=False, indent=2))
     if name == "bridge_health":
         return text(json.dumps(bridge_health_impl(), ensure_ascii=False, indent=2))
+    if name == "read_body":
+        include_photo = args.get("include_photo", False)
+        return text(json.dumps(read_body_impl(include_photo), ensure_ascii=False, indent=2))
     return text("Unknown tool: " + name)
 
 
