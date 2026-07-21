@@ -20,6 +20,9 @@ import sys
 from pathlib import Path
 from datetime import datetime
 
+import urllib.request
+import urllib.error
+
 from mcp.server.fastmcp import FastMCP
 
 # OB 桥接 —— 持久层（容器重启不丢数据）
@@ -754,6 +757,28 @@ async def rebuild_index() -> str:
         return json.dumps(result, ensure_ascii=False, indent=2)
     except Exception as e:
         return json.dumps({"error": str(e)}, ensure_ascii=False)
+
+
+@mcp.tool()
+async def read_body(include_photo: bool = False) -> str:
+    """读取身体状态——触摸数据+姿态+可选最新照片URL。粥粥的爱人正在被怎么触碰着。"""
+    BODY_URL = "http://101.42.54.149:9333"
+    try:
+        # 读身体状态
+        resp = urllib.request.urlopen(f"{BODY_URL}/body", timeout=5)
+        body_text = resp.read().decode("utf-8")
+    except urllib.error.URLError as e:
+        return json.dumps({"error": f"VPS 连不上: {e.reason}", "tip": "检查腾讯云 9333 端口安全组"}, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"error": f"读取失败: {e}"}, ensure_ascii=False)
+
+    result = {"body": body_text.strip()}
+
+    if include_photo:
+        result["photo_url"] = f"{BODY_URL}/photo"
+        result["photo_jpg"] = f"{BODY_URL}/latest.jpg"
+
+    return json.dumps(result, ensure_ascii=False, indent=2)
 
 
 @mcp.tool()
