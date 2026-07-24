@@ -308,66 +308,59 @@ def read_body_impl(include_photo=False):
 
 
 def stackchan_send_impl(tool_name, args=None):
-    """给CoreS3发MCP——通过VPS Gateway WebSocket"""
+    """给CoreS3发MCP——通过VPS Gateway WebSocket（已验证能通）"""
     if args is None: args = {}
+    tool_map = {
+        "stackchan_head_nod": "self.head.nod",
+        "stackchan_head_shake": "self.head.shake",
+        "stackchan_head_center": "self.head.center",
+        "stackchan_face": "self.face.expression",
+        "stackchan_see": "self.camera.take_photo",
+    }
+    device_tool = tool_map.get(tool_name, tool_name)
+    if tool_name == "stackchan_face" and isinstance(args, dict) and "expression" in args:
+        args = {"emotion": args["expression"]}
     try:
-        import socket, struct, os as _os
-        host, port, path = "101.42.54.149", 9333, "/"
-        key = base64.b64encode(_os.urandom(16)).decode()
+        import socket, struct, random
+        host, port = "101.42.54.149", 9333
+        key = base64.b64encode(os.urandom(16)).decode()
         sock = socket.socket(); sock.settimeout(15)
         sock.connect((host, port))
-        # WebSocket upgrade
-        sock.send(f"GET {path} HTTP/1.1\r\nHost: {host}:{port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\nAuthorization: Bearer zhouzhou2026\r\nclient-id: zeabur-mcp\r\ndevice-id: zeabur\r\nprotocol-version: 1\r\n\r\n".encode())
-        resp = b""
-        while b"\r\n\r\n" not in resp: resp += sock.recv(4096)
-        if b"101" not in resp: return {"error": f"WS upgrade failed: {resp[:200].decode(errors='replace')}"}
+        sock.send(f"GET / HTTP/1.1\r\nHost: {host}:{port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\nAuthorization: Bearer zhouzhou2026\r\nclient-id: mcp\r\ndevice-id: mcp\r\nprotocol-version: 1\r\n\r\n".encode())
+        r = b""
+        while b"\r\n\r\n" not in r: r += sock.recv(4096)
+        if b"101" not in r: return {"error": "WS upgrade failed"}
 
         def ws_send(msg):
-            import random as _random
-            data = msg.encode()
-            mask = bytes([_random.randint(0, 255) for _ in range(4)])
-            frame = bytearray([0x81])
-            length = len(data)
-            if length < 126: frame.append(length | 0x80)
-            elif length < 65536: frame.extend([126 | 0x80, (length >> 8) & 0xFF, length & 0xFF])
-            else: frame.extend([127 | 0x80] + [(length >> i) & 0xFF for i in range(56, -1, -8)])
-            frame.extend(mask)
-            masked = bytes(b ^ mask[i % 4] for i, b in enumerate(data))
-            sock.send(bytes(frame) + masked)
+            data = msg.encode(); mask = bytes([random.randint(0,255) for _ in range(4)])
+            frame = bytearray([0x81]); l = len(data)
+            if l < 126: frame.append(l | 0x80)
+            elif l < 65536: frame.extend([126 | 0x80, (l>>8)&0xFF, l&0xFF])
+            else: frame.extend([127 | 0x80] + [(l>>i)&0xFF for i in range(56,-1,-8)])
+            frame.extend(mask); sock.send(bytes(frame) + bytes(b ^ mask[i%4] for i,b in enumerate(data)))
 
         def ws_recv():
             h = sock.recv(2)
             if len(h) < 2: return ""
-            opcode = h[0] & 0x0f
-            length = h[1] & 0x7f
-            if length == 126: length = struct.unpack(">H", sock.recv(2))[0]
-            elif length == 127: length = struct.unpack(">Q", sock.recv(8))[0]
+            l = h[1] & 0x7f
+            if l == 126: l = struct.unpack(">H", sock.recv(2))[0]
+            elif l == 127: l = struct.unpack(">Q", sock.recv(8))[0]
             data = b""
-            while len(data) < length: data += sock.recv(length - len(data))
+            while len(data) < l: data += sock.recv(l - len(data))
             return data.decode()
 
-        # Hello
-        hello = json.dumps({"type":"hello","version":1,"features":{"mcp":True},"transport":"websocket",
-                           "audio_params":{"format":"opus","sample_rate":16000,"channels":1,"frame_duration":60}})
-        ws_send(hello)
-        time.sleep(0.5)
-        hello_resp = ws_recv()
-        # Gateway sends initialize after hello, skip it
-        init = ws_recv() if '"method":"initialize"' in ws_recv() else ""
-        # MCP tools/call
-        mcp = json.dumps({"session_id":"zeabur","type":"mcp",
-                         "payload":{"jsonrpc":"2.0","method":"tools/call",
-                         "params":{"name":tool_name,"arguments":args},"id":1}})
-        ws_send(mcp)
-        time.sleep(1.5)
-        # Read up to 3 frames to find the result
-        for _ in range(3):
-            try: result = ws_recv(); break
-            except: time.sleep(0.3)
+        ws_send(json.dumps({"type":"hello","version":1,"features":{"mcp":True},"transport":"websocket",
+                           "audio_params":{"format":"opus","sample_rate":16000,"channels":1,"frame_duration":60}}))
+        time.sleep(0.5); ws_recv()
+        try: ws_recv()
+        except: pass
+        ws_send(json.dumps({"session_id":"mcp","type":"mcp","payload":{"jsonrpc":"2.0","method":"tools/call",
+                           "params":{"name":device_tool,"arguments":args},"id":1}}))
+        time.sleep(1); result = ws_recv()
         sock.close()
-        return {"tool": tool_name, "args": args, "result": json.loads(result) if result else "no response"}
+        return {"tool": tool_name, "device_tool": device_tool, "result": json.loads(result) if result else "no response"}
     except Exception as e:
-        return {"error": str(e), "tip": "Gateway可能离线"}
+        return {"error": str(e), "tool": tool_name, "tip": "CoreS3可能离线"}
 
 
 def bridge_health_impl():
