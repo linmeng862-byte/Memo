@@ -323,15 +323,28 @@ def stackchan_send_impl(tool_name, args=None):
         if b"101" not in resp: return {"error": f"WS upgrade failed: {resp[:200].decode(errors='replace')}"}
 
         def ws_send(msg):
-            data = msg.encode(); sock.send(bytes([0x81, len(data)]) + data)
+            import random as _random
+            data = msg.encode()
+            mask = bytes([_random.randint(0, 255) for _ in range(4)])
+            frame = bytearray([0x81])
+            length = len(data)
+            if length < 126: frame.append(length | 0x80)
+            elif length < 65536: frame.extend([126 | 0x80, (length >> 8) & 0xFF, length & 0xFF])
+            else: frame.extend([127 | 0x80] + [(length >> i) & 0xFF for i in range(56, -1, -8)])
+            frame.extend(mask)
+            masked = bytes(b ^ mask[i % 4] for i, b in enumerate(data))
+            sock.send(bytes(frame) + masked)
 
         def ws_recv():
             h = sock.recv(2)
             if len(h) < 2: return ""
+            opcode = h[0] & 0x0f
             length = h[1] & 0x7f
             if length == 126: length = struct.unpack(">H", sock.recv(2))[0]
             elif length == 127: length = struct.unpack(">Q", sock.recv(8))[0]
-            return sock.recv(length).decode()
+            data = b""
+            while len(data) < length: data += sock.recv(length - len(data))
+            return data.decode()
 
         # Hello
         hello = json.dumps({"type":"hello","version":1,"features":{"mcp":True},"transport":"websocket",
