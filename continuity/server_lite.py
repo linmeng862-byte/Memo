@@ -356,7 +356,16 @@ def stackchan_send_impl(tool_name, args=None):
         except: pass
         ws_send(json.dumps({"session_id":"mcp","type":"mcp","payload":{"jsonrpc":"2.0","method":"tools/call",
                            "params":{"name":device_tool,"arguments":args},"id":1}}))
-        time.sleep(1); result = ws_recv()
+        time.sleep(2)
+        # Poll for response with retries
+        result = ""
+        for i in range(5):
+            try:
+                result = ws_recv()
+                if result and "error" not in result.lower():
+                    break
+            except:
+                time.sleep(0.5)
         sock.close()
         return {"tool": tool_name, "device_tool": device_tool, "result": json.loads(result) if result else "no response"}
     except Exception as e:
