@@ -70,6 +70,7 @@ def _get_ob_session() -> str | None:
 
 def _call_ob(tool_name: str, arguments: dict) -> dict:
     """通过 JSON-RPC 调用 Ombre Brain MCP 工具。"""
+    global _session_id
     sid = _get_ob_session()
     payload = {
         "jsonrpc": "2.0",
@@ -95,7 +96,11 @@ def _call_ob(tool_name: str, arguments: dict) -> dict:
             method="POST"
         )
         with urllib.request.urlopen(req, timeout=OB_TIMEOUT) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+            body = resp.read().decode("utf-8")
+            if not body.strip():
+                _session_id = None
+                return {"error": "empty OB response, session reset", "ok": False}
+            return json.loads(body)
     except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, OSError) as e:
         return {"error": str(e), "ok": False}
 
