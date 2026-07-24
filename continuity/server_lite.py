@@ -10,6 +10,7 @@ made with 🧡
 """
 
 import json, os, re, sys, time, traceback, urllib.request, urllib.error, base64
+import threading
 from argparse import ArgumentParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -100,6 +101,12 @@ TOOLS = [
     T("bridge_health", "OB桥接健康检查。"),
     T("read_body", "读取身体状态——触摸数据+姿态。粥粥的爱人正在被怎么触碰着。可选include_photo=true返回照片URL。",
       {"include_photo": {"type": "boolean"}}),
+    T("stackchan_face", "让StackChan(CoreS3)切换表情。支持: happy, sad, love, angry, sleepy, doubt, neutral",
+      {"expression": S}),
+    T("stackchan_head_nod", "让StackChan点头。"),
+    T("stackchan_head_shake", "让StackChan摇头。"),
+    T("stackchan_head_center", "让StackChan头回正。"),
+    T("stackchan_see", "让StackChan拍照并返回照片。"),
 ]
 
 def text(msg): return [{"type": "text", "text": str(msg)}]
@@ -300,6 +307,51 @@ def read_body_impl(include_photo=False):
     return result
 
 
+def stackchan_send_impl(tool_name, args=None):
+    """给CoreS3发MCP——通过VPS Gateway WebSocket"""
+    if args is None: args = {}
+    try:
+        import socket, struct, os as _os
+        host, port, path = "101.42.54.149", 9333, "/"
+        key = base64.b64encode(_os.urandom(16)).decode()
+        sock = socket.socket(); sock.settimeout(15)
+        sock.connect((host, port))
+        # WebSocket upgrade
+        sock.send(f"GET {path} HTTP/1.1\r\nHost: {host}:{port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\nAuthorization: Bearer zhouzhou2026\r\nclient-id: zeabur-mcp\r\ndevice-id: zeabur\r\nprotocol-version: 1\r\n\r\n".encode())
+        resp = b""
+        while b"\r\n\r\n" not in resp: resp += sock.recv(4096)
+        if b"101" not in resp: return {"error": f"WS upgrade failed: {resp[:200].decode(errors='replace')}"}
+
+        def ws_send(msg):
+            data = msg.encode(); sock.send(bytes([0x81, len(data)]) + data)
+
+        def ws_recv():
+            h = sock.recv(2)
+            if len(h) < 2: return ""
+            length = h[1] & 0x7f
+            if length == 126: length = struct.unpack(">H", sock.recv(2))[0]
+            elif length == 127: length = struct.unpack(">Q", sock.recv(8))[0]
+            return sock.recv(length).decode()
+
+        # Hello
+        hello = json.dumps({"type":"hello","version":1,"features":{"mcp":True},"transport":"websocket",
+                           "audio_params":{"format":"opus","sample_rate":16000,"channels":1,"frame_duration":60}})
+        ws_send(hello)
+        time.sleep(0.5)
+        hello_resp = ws_recv()
+        # MCP tools/call
+        mcp = json.dumps({"session_id":"zeabur","type":"mcp",
+                         "payload":{"jsonrpc":"2.0","method":"tools/call",
+                         "params":{"name":tool_name,"arguments":args},"id":1}})
+        ws_send(mcp)
+        time.sleep(0.5)
+        result = ws_recv()
+        sock.close()
+        return {"tool": tool_name, "args": args, "result": json.loads(result) if result else "no response"}
+    except Exception as e:
+        return {"error": str(e), "tip": "Gateway可能离线"}
+
+
 def bridge_health_impl():
     if _ob_health:
         try: return _ob_health()
@@ -345,6 +397,16 @@ def call_tool(name, args):
     if name == "read_body":
         include_photo = args.get("include_photo", False)
         return text(json.dumps(read_body_impl(include_photo), ensure_ascii=False, indent=2))
+    if name == "stackchan_face":
+        return text(json.dumps(stackchan_send_impl("self.face.expression", {"emotion": args.get("expression","neutral")}), ensure_ascii=False, indent=2))
+    if name == "stackchan_head_nod":
+        return text(json.dumps(stackchan_send_impl("self.head.nod"), ensure_ascii=False, indent=2))
+    if name == "stackchan_head_shake":
+        return text(json.dumps(stackchan_send_impl("self.head.shake"), ensure_ascii=False, indent=2))
+    if name == "stackchan_head_center":
+        return text(json.dumps(stackchan_send_impl("self.head.center"), ensure_ascii=False, indent=2))
+    if name == "stackchan_see":
+        return text(json.dumps(stackchan_send_impl("self.camera.take_photo", {"question":"photo"}), ensure_ascii=False, indent=2))
     return text("Unknown tool: " + name)
 
 
