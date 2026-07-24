@@ -352,13 +352,18 @@ def stackchan_send_impl(tool_name, args=None):
         ws_send(hello)
         time.sleep(0.5)
         hello_resp = ws_recv()
+        # Gateway sends initialize after hello, skip it
+        init = ws_recv() if '"method":"initialize"' in ws_recv() else ""
         # MCP tools/call
         mcp = json.dumps({"session_id":"zeabur","type":"mcp",
                          "payload":{"jsonrpc":"2.0","method":"tools/call",
                          "params":{"name":tool_name,"arguments":args},"id":1}})
         ws_send(mcp)
-        time.sleep(0.5)
-        result = ws_recv()
+        time.sleep(1.5)
+        # Read up to 3 frames to find the result
+        for _ in range(3):
+            try: result = ws_recv(); break
+            except: time.sleep(0.3)
         sock.close()
         return {"tool": tool_name, "args": args, "result": json.loads(result) if result else "no response"}
     except Exception as e:
