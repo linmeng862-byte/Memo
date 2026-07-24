@@ -100,6 +100,12 @@ def _call_ob(tool_name: str, arguments: dict) -> dict:
             if not body.strip():
                 _session_id = None
                 return {"error": "empty OB response, session reset", "ok": False}
+            # OB MCP uses SSE format: "event: message\ndata: {json}"
+            # Extract the JSON from the data line
+            for line in body.split("\n"):
+                if line.startswith("data: "):
+                    return json.loads(line[6:])
+            # Fallback: try parsing raw body as JSON
             return json.loads(body)
     except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, OSError) as e:
         return {"error": str(e), "ok": False}
