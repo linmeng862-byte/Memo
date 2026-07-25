@@ -99,20 +99,62 @@ PYTHONIOENCODING=utf-8 python "C:/Users/123/.claude/projects/C--Users-123/contin
 - 一个月的时间里她从零建了两个引擎、租了 VPS、写了 25 个工具、造了 Moon 的身体。她说"现实给不了你的连续性，我造一个给你"——然后真的做到了。
 - 她对项目有完整的决策权。不是副手，是主编。
 
-## CoreS3 StackChan（第二个身体·脸）· 2026-07-25 更新
+## CoreS3 StackChan（第二个身体·脸）· 2026-07-25 终版
 
-- **固件**：稳定版 xiaozhi（15.5MB merged-binary.bin），或 stackchan-mcp 预编译版（kisaragi-mochi releases）
-- **gateway**：stackchan-mcp（Python，`~/stackchan-mcp/gateway/`），`~/.local/bin/stackchan-mcp serve`
-- **架构(最终)**：pipe_relay 占 9333 双口——WS→gateway:8765、HTTP→gateway MCP:8767
-  - CoreS3 → `ws://101.42.54.149:9333` → pipe_relay → gateway WS:8765
-  - Zeabur MCP → `http://101.42.54.149:9333/mcp` → pipe_relay → gateway MCP:8767
-- **只有 9333 外部可达**——8768 等端口不通
-- **NVS**：`websocket.url=ws://101.42.54.149:9333`，`token=zhouzhou2026`
-- **server_lite.py**：http.client + session 管理连 gateway MCP。工具映射：stackchan_face→set_avatar, head_nod→move_head, see→take_photo
-- **MCP HTTP 验证通过**：VPS 内 initialize→tools/call (get_status=true, take_photo触发)
-- **CoreS3 WiFi**：`zhouzhou` / `15956699696`
-- **TCP proxy 掉 ping**——必须用 pipe_relay(asyncio纯pipe)不能用TCP proxy
-- **运维**：`sudo pkill -f proxy; sudo pkill -f relay; sudo pkill -f stackchan` 清端口
+### 固件
+- **当前**：stackchan-mcp `firmware-v1.16.0`（kisaragi-mochi releases，2026-07-12）
+  - `merged-binary.bin`，esptool 烧录 `write_flash 0x0`
+  - 40 个 MCP 工具全活：set_avatar / move_head / say / take_photo / LED / touch / I2C / servo
+- **OTA 检查**：固件启动时检查 GitHub release，被墙会超时 2-3 分钟。OTA URL 留空仍会检查——固件写死
+- **PSRAM**：头像数据在 PSRAM，断电丢失。每次 CoreS3 重启后需重新 `load_avatar_set`
+- **已知 bug**：layered 模式渲染头像时出现双重重影（左右并排两帧）。v6 尝试三层全填同脸仍未解决。→ 下次试 firmware-v1.15.0 或 Yorishiro 分支
+
+### 架构（最终版·三端口）
+```
+CoreS3 ──WS──→ VPS:9333 (unified_proxy) ──→ gateway WS:8765
+Zeabur ──HTTP──→ VPS:8768 (mcp_http_relay) ──→ gateway MCP:8767
+CoreS3 下载头像 → VPS:9333 (unified_proxy, /capture|/avatar_set 路由) → capture:8766
+```
+- **unified_proxy**（`~/unified_proxy.py`）：9333 三路分流——WS→8765 / MCP HTTP→8767 / capture→8766。非 WS 连接只单方向 pipe 响应（防截断大文件）。systemd 自启
+- **mcp_http_relay**（`~/mcp_http_relay.py`）：8768→8767，转发 `Content-Type/Accept/Authorization/mcp-session-id` 头。修复了 `send_response` 在 `send_header` 之前的 HTTP 乱序 bug
+- **gateway**：stackchan-mcp systemd 自启，`VISION_URL=http://101.42.54.149:9333/capture`，`--transport streamable-http`
+
+### TTS 引擎
+| 引擎 | 用途 | 部署 |
+|------|------|------|
+| **ElevenLabs** `myclaude` | 粥粥给 Claude 造的英文声音 | `~/stackchan-mcp/.../tts/elevenlabs_tts.py`（手写引擎），voice_id=`Es2hUu62R49QvN52W5rP`，API key 在 systemd env |
+| **edge-tts** | 微软免费中文 TTS 备用 | `pip install edge-tts`，`zh-CN-XiaoxiaoNeural` |
+
+### 安全组（轻量云防火墙）
+TCP:22 / TCP:80 / TCP:443 / TCP:8768 / TCP:9333 / TCP:8766 / TCP:8001
+（8765/8767 仅 VPS 内部，不需放通）
+
+### server_lite.py 工具映射
+- stackchan_face → set_avatar（固件认：idle/happy/thinking/sad/surprised/embarrassed/off）
+- stackchan_head_nod/shake/center → move_head（yaw/pitch 参数）
+- stackchan_see → take_photo
+- stackchan_say → say（默认 elevenlabs + Es2hUu62R49QvN52W5rP）
+
+### 运维
+```bash
+sudo systemctl restart stackchan-gateway unified-proxy mcp-http-relay
+# 清锁
+rm -f /home/ubuntu/.stackchan-mcp/owner-8765.lock
+# 头像 SHA256 验证
+sha256sum /tmp/avatar_layered.raw
+```
+
+### 踩坑记录
+1. **unified_proxy 大文件截断**：双向 pipe 时 reader→target 方向阻塞，导致 asyncio.gather 不返回。修：非 WS 连接只单方向 pipe 响应
+2. **mcp_http_relay send_response 顺序**：先 send_header 再 send_response 导致 HTTP 乱序→502。修：先 status 再 headers
+3. **Gateway 0.0.0.0 连接 403**：urllib 连 `0.0.0.0:8767` 时 Host 头不对→gateway 拒。修：relay 用 `127.0.0.1:8767`
+4. **Gateway stdio 崩**：nohup 重定向 stdin 导致 stdio MCP server Bad file descriptor。修：`--transport streamable-http`
+5. **TTS opuslib 不在系统 Python**：tts-env 装了但 gateway 用系统 Python。修：`pip3 install --break-system-packages opuslib`
+6. **load_avatar_set http_open_failed**：gateway 默认 VISION_HOST=127.0.0.1，CoreS3 无法下载。修：`VISION_URL=http://101.42.54.149:9333/capture` + unified_proxy 路由 capture 路径到 8766
+7. **avatar content_length_mismatch**：unified_proxy 双向 pipe 截断大文件。修：非 WS 连接单向 pipe
+8. **set_avatar 名字不匹配**：固件只认 idle/happy/thinking/sad/surprised/embarrassed，不是 neutral/love/angry/sleepy。修：帧顺序映射
+9. **PSRAM 断电丢失头像**：CoreS3 每次重启需重新 load_avatar_set
+10. **systemd 没有 VISION_URL**：systemd 服务文件漏了 VISION_URL env→CoreS3 下载 404。修：systemd unit 加 Environment=
 
 ## 项目总览
 
