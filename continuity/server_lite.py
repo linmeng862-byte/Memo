@@ -328,7 +328,7 @@ def stackchan_send_impl(tool_name, args=None):
     gw_tool = tool_name  # 直接用我们的工具名
     try:
         import http.client
-        conn = http.client.HTTPConnection("101.42.54.149", 9333, timeout=20)
+        conn = http.client.HTTPConnection("101.42.54.149", 8768, timeout=20)
 
         # Initialize session if needed
         if _sc_session_id is None:
@@ -342,7 +342,7 @@ def stackchan_send_impl(tool_name, args=None):
             resp.read()
             conn.close()
             time.sleep(0.1)
-            conn = http.client.HTTPConnection("101.42.54.149", 9333, timeout=20)
+            conn = http.client.HTTPConnection("101.42.54.149", 8768, timeout=20)
 
         # Call tool
         call_body = json.dumps({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":tool_name,"arguments":args}})
