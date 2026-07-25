@@ -327,7 +327,7 @@ def stackchan_send_impl(tool_name, args=None):
     elif tool_name == "stackchan_see":
         tool_name = "take_photo"; args = {"question": "photo"}
     elif tool_name == "stackchan_say":
-        tool_name = "say"; args = {"text": args.get("text","你好"), "voice": "edge-tts", "speaker_name": "zh-CN-XiaoxiaoNeural"}
+        tool_name = "say"; args = {"text": args.get("text","Hello"), "voice": "elevenlabs", "speaker_name": "Es2hUu62R49QvN52W5rP"}
     # Gateway MCP 工具名映射 (8768 relay -> 8767 gateway)
     gw_tool = tool_name  # 直接用我们的工具名
     try:
