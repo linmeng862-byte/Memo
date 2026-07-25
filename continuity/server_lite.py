@@ -101,7 +101,7 @@ TOOLS = [
     T("bridge_health", "OB桥接健康检查。"),
     T("read_body", "读取身体状态——触摸数据+姿态。粥粥的爱人正在被怎么触碰着。可选include_photo=true返回照片URL。",
       {"include_photo": {"type": "boolean"}}),
-    T("stackchan_face", "让StackChan(CoreS3)切换表情。支持: happy, sad, love, angry, sleepy, doubt, neutral",
+    T("stackchan_face", "让StackChan(CoreS3)切换表情。支持: idle, happy, thinking, sad, surprised, embarrassed, off",
       {"expression": S}),
     T("stackchan_head_nod", "让StackChan点头。"),
     T("stackchan_head_shake", "让StackChan摇头。"),
@@ -411,7 +411,7 @@ def call_tool(name, args):
         include_photo = args.get("include_photo", False)
         return text(json.dumps(read_body_impl(include_photo), ensure_ascii=False, indent=2))
     if name == "stackchan_face":
-        return text(json.dumps(stackchan_send_impl(name, {"expression": args.get("expression","neutral")}), ensure_ascii=False, indent=2))
+        return text(json.dumps(stackchan_send_impl(name, {"expression": args.get("expression","idle")}), ensure_ascii=False, indent=2))
     if name == "stackchan_head_nod" or name == "stackchan_head_shake" or name == "stackchan_head_center" or name == "stackchan_see" or name == "stackchan_say":
         return text(json.dumps(stackchan_send_impl(name, args), ensure_ascii=False, indent=2))
     return text("Unknown tool: " + name)
