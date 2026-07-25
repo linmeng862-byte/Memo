@@ -307,69 +307,47 @@ def read_body_impl(include_photo=False):
     return result
 
 
+_sc_session_id = None  # gateway MCP session cache
+
 def stackchan_send_impl(tool_name, args=None):
-    """给CoreS3发MCP——通过VPS Gateway WebSocket（已验证能通）"""
+    """给CoreS3发MCP——VPS Gateway MCP HTTP (已验证全链路通)"""
+    global _sc_session_id
     if args is None: args = {}
-    tool_map = {
-        "stackchan_head_nod": "self.head.nod",
-        "stackchan_head_shake": "self.head.shake",
-        "stackchan_head_center": "self.head.center",
-        "stackchan_face": "self.face.expression",
-        "stackchan_see": "self.camera.take_photo",
-    }
-    device_tool = tool_map.get(tool_name, tool_name)
-    if tool_name == "stackchan_face" and isinstance(args, dict) and "expression" in args:
-        args = {"emotion": args["expression"]}
+    # Gateway 工具名（不用设备原名）
+    gw_tool = tool_name  # 直接用我们的工具名
     try:
-        import socket, struct, random
-        host, port = "101.42.54.149", 9333
-        key = base64.b64encode(os.urandom(16)).decode()
-        sock = socket.socket(); sock.settimeout(15)
-        sock.connect((host, port))
-        sock.send(f"GET / HTTP/1.1\r\nHost: {host}:{port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\nAuthorization: Bearer zhouzhou2026\r\nclient-id: mcp\r\ndevice-id: mcp\r\nprotocol-version: 1\r\n\r\n".encode())
-        r = b""
-        while b"\r\n\r\n" not in r: r += sock.recv(4096)
-        if b"101" not in r: return {"error": "WS upgrade failed"}
+        import http.client
+        conn = http.client.HTTPConnection("101.42.54.149", 9333, timeout=20)
 
-        def ws_send(msg):
-            data = msg.encode(); mask = bytes([random.randint(0,255) for _ in range(4)])
-            frame = bytearray([0x81]); l = len(data)
-            if l < 126: frame.append(l | 0x80)
-            elif l < 65536: frame.extend([126 | 0x80, (l>>8)&0xFF, l&0xFF])
-            else: frame.extend([127 | 0x80] + [(l>>i)&0xFF for i in range(56,-1,-8)])
-            frame.extend(mask); sock.send(bytes(frame) + bytes(b ^ mask[i%4] for i,b in enumerate(data)))
+        # Initialize session if needed
+        if _sc_session_id is None:
+            init_body = json.dumps({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"zeabur-stackchan","version":"1.0"}}})
+            conn.request("POST", "/mcp", body=init_body,
+                headers={"Content-Type":"application/json","Accept":"application/json","Authorization":"Bearer zhouzhou2026"})
+            resp = conn.getresponse()
+            if resp.status != 200:
+                return {"error": f"Init failed: {resp.status}", "tip": "Gateway可能离线"}
+            _sc_session_id = resp.getheader("mcp-session-id", "")
+            resp.read()
+            conn.close()
+            time.sleep(0.1)
+            conn = http.client.HTTPConnection("101.42.54.149", 9333, timeout=20)
 
-        def ws_recv():
-            h = sock.recv(2)
-            if len(h) < 2: return ""
-            l = h[1] & 0x7f
-            if l == 126: l = struct.unpack(">H", sock.recv(2))[0]
-            elif l == 127: l = struct.unpack(">Q", sock.recv(8))[0]
-            data = b""
-            while len(data) < l: data += sock.recv(l - len(data))
-            return data.decode()
-
-        ws_send(json.dumps({"type":"hello","version":1,"features":{"mcp":True},"transport":"websocket",
-                           "audio_params":{"format":"opus","sample_rate":16000,"channels":1,"frame_duration":60}}))
-        time.sleep(0.5); ws_recv()
-        try: ws_recv()
-        except: pass
-        ws_send(json.dumps({"session_id":"mcp","type":"mcp","payload":{"jsonrpc":"2.0","method":"tools/call",
-                           "params":{"name":device_tool,"arguments":args},"id":1}}))
-        time.sleep(2)
-        # Poll for response with retries
-        result = ""
-        for i in range(5):
-            try:
-                result = ws_recv()
-                if result and "error" not in result.lower():
-                    break
-            except:
-                time.sleep(0.5)
-        sock.close()
-        return {"tool": tool_name, "device_tool": device_tool, "result": json.loads(result) if result else "no response"}
+        # Call tool
+        call_body = json.dumps({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":tool_name,"arguments":args}})
+        headers = {"Content-Type":"application/json","Accept":"application/json","Authorization":"Bearer zhouzhou2026"}
+        if _sc_session_id:
+            headers["mcp-session-id"] = _sc_session_id
+        conn.request("POST", "/mcp", body=call_body, headers=headers)
+        resp = conn.getresponse()
+        result = resp.read().decode()
+        conn.close()
+        if resp.status != 200:
+            _sc_session_id = None  # reset session on error
+        return {"tool": tool_name, "result": json.loads(result) if result else "empty"}
     except Exception as e:
-        return {"error": str(e), "tool": tool_name, "tip": "CoreS3可能离线"}
+        _sc_session_id = None
+        return {"error": str(e), "tool": tool_name, "tip": "Gateway离线或CoreS3未连"}
 
 
 def bridge_health_impl():
