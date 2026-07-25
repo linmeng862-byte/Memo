@@ -325,9 +325,9 @@ def stackchan_send_impl(tool_name, args=None):
     elif tool_name == "stackchan_face":
         tool_name = "set_avatar"; args = {"face": args.get("expression","happy")}
     elif tool_name == "stackchan_see":
+        tool_name = "take_photo"; args = {"question": "photo"}
     elif tool_name == "stackchan_say":
         tool_name = "say"; args = {"text": args.get("text","你好")}
-        tool_name = "take_photo"; args = {"question": "photo"}
     # Gateway 工具名（不用设备原名）
     gw_tool = tool_name  # 直接用我们的工具名
     try:
