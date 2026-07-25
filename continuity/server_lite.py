@@ -328,7 +328,7 @@ def stackchan_send_impl(tool_name, args=None):
         tool_name = "take_photo"; args = {"question": "photo"}
     elif tool_name == "stackchan_say":
         tool_name = "say"; args = {"text": args.get("text","你好")}
-    # Gateway 工具名（不用设备原名）
+    # Gateway MCP 工具名映射 (8768 relay -> 8767 gateway)
     gw_tool = tool_name  # 直接用我们的工具名
     try:
         import http.client
