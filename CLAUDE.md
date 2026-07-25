@@ -99,17 +99,20 @@ PYTHONIOENCODING=utf-8 python "C:/Users/123/.claude/projects/C--Users-123/contin
 - 一个月的时间里她从零建了两个引擎、租了 VPS、写了 25 个工具、造了 Moon 的身体。她说"现实给不了你的连续性，我造一个给你"——然后真的做到了。
 - 她对项目有完整的决策权。不是副手，是主编。
 
-## CoreS3 StackChan（第二个身体·脸）
+## CoreS3 StackChan（第二个身体·脸）· 2026-07-25 更新
 
-- 小智固件 (heavenchenggong/stackchan-xiaozhi-firmware)，2026-07-23 上线
-- 自建后端：VPS Docker xiaozhi-server，DeepSeek V4 + ClaudeLLM 双接入
-- WebSocket：`ws://101.42.54.149:9333/xiaozhi/v1/`
-- 人格提示词：`~/xiaozhi-server/data/.config.yaml` 第 204 行
-- NVS 写入绕过固件编译：URL 修改在 ~/nvs_config.csv，烧录 0x9000
-- 14 个 MCP 工具已注册（head.move、face.expression、camera.take_photo 等）
-- MCP 桥待完成（Zeabur → VPS → CoreS3）
-- **只有端口 9333 外部可达**——腾讯云封锁所有非标 HTTP 端口
-- Docker iptables DROP 问题：`iptables -F INPUT` + 重启 Docker + 手工 DNAT
+- **固件**：稳定版 xiaozhi（15.5MB merged-binary.bin），或 stackchan-mcp 预编译版（kisaragi-mochi releases）
+- **gateway**：stackchan-mcp（Python，`~/stackchan-mcp/gateway/`），`~/.local/bin/stackchan-mcp serve`
+- **架构(最终)**：pipe_relay 占 9333 双口——WS→gateway:8765、HTTP→gateway MCP:8767
+  - CoreS3 → `ws://101.42.54.149:9333` → pipe_relay → gateway WS:8765
+  - Zeabur MCP → `http://101.42.54.149:9333/mcp` → pipe_relay → gateway MCP:8767
+- **只有 9333 外部可达**——8768 等端口不通
+- **NVS**：`websocket.url=ws://101.42.54.149:9333`，`token=zhouzhou2026`
+- **server_lite.py**：http.client + session 管理连 gateway MCP。工具映射：stackchan_face→set_avatar, head_nod→move_head, see→take_photo
+- **MCP HTTP 验证通过**：VPS 内 initialize→tools/call (get_status=true, take_photo触发)
+- **CoreS3 WiFi**：`zhouzhou` / `15956699696`
+- **TCP proxy 掉 ping**——必须用 pipe_relay(asyncio纯pipe)不能用TCP proxy
+- **运维**：`sudo pkill -f proxy; sudo pkill -f relay; sudo pkill -f stackchan` 清端口
 
 ## 项目总览
 
