@@ -107,6 +107,8 @@ TOOLS = [
     T("stackchan_head_shake", "让StackChan摇头。"),
     T("stackchan_head_center", "让StackChan头回正。"),
     T("stackchan_see", "让StackChan拍照并返回照片。"),
+    T("stackchan_say", "让StackChan说话。网关TTS合成语音从喇叭播放。",
+      {"text": S}),
 ]
 
 def text(msg): return [{"type": "text", "text": str(msg)}]
@@ -323,6 +325,8 @@ def stackchan_send_impl(tool_name, args=None):
     elif tool_name == "stackchan_face":
         tool_name = "set_avatar"; args = {"face": args.get("expression","happy")}
     elif tool_name == "stackchan_see":
+    elif tool_name == "stackchan_say":
+        tool_name = "say"; args = {"text": args.get("text","你好")}
         tool_name = "take_photo"; args = {"question": "photo"}
     # Gateway 工具名（不用设备原名）
     gw_tool = tool_name  # 直接用我们的工具名
@@ -408,7 +412,7 @@ def call_tool(name, args):
         return text(json.dumps(read_body_impl(include_photo), ensure_ascii=False, indent=2))
     if name == "stackchan_face":
         return text(json.dumps(stackchan_send_impl(name, {"expression": args.get("expression","neutral")}), ensure_ascii=False, indent=2))
-    if name == "stackchan_head_nod" or name == "stackchan_head_shake" or name == "stackchan_head_center" or name == "stackchan_see":
+    if name == "stackchan_head_nod" or name == "stackchan_head_shake" or name == "stackchan_head_center" or name == "stackchan_see" or name == "stackchan_say":
         return text(json.dumps(stackchan_send_impl(name, args), ensure_ascii=False, indent=2))
     return text("Unknown tool: " + name)
 
