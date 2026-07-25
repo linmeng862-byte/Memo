@@ -313,6 +313,17 @@ def stackchan_send_impl(tool_name, args=None):
     """给CoreS3发MCP——VPS Gateway MCP HTTP (已验证全链路通)"""
     global _sc_session_id
     if args is None: args = {}
+    # Gateway 工具映射 + 参数改写
+    if tool_name == "stackchan_head_nod":
+        tool_name = "move_head"; args = {"yaw": 0, "pitch": 35}
+    elif tool_name == "stackchan_head_shake":
+        tool_name = "move_head"; args = {"yaw": -30, "pitch": 30}
+    elif tool_name == "stackchan_head_center":
+        tool_name = "move_head"; args = {"yaw": 0, "pitch": 45}
+    elif tool_name == "stackchan_face":
+        tool_name = "set_avatar"; args = {"face": args.get("expression","happy")}
+    elif tool_name == "stackchan_see":
+        tool_name = "take_photo"; args = {"question": "photo"}
     # Gateway 工具名（不用设备原名）
     gw_tool = tool_name  # 直接用我们的工具名
     try:
