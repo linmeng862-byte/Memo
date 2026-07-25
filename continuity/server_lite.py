@@ -407,15 +407,9 @@ def call_tool(name, args):
         include_photo = args.get("include_photo", False)
         return text(json.dumps(read_body_impl(include_photo), ensure_ascii=False, indent=2))
     if name == "stackchan_face":
-        return text(json.dumps(stackchan_send_impl("self.face.expression", {"emotion": args.get("expression","neutral")}), ensure_ascii=False, indent=2))
-    if name == "stackchan_head_nod":
-        return text(json.dumps(stackchan_send_impl("self.head.nod"), ensure_ascii=False, indent=2))
-    if name == "stackchan_head_shake":
-        return text(json.dumps(stackchan_send_impl("self.head.shake"), ensure_ascii=False, indent=2))
-    if name == "stackchan_head_center":
-        return text(json.dumps(stackchan_send_impl("self.head.center"), ensure_ascii=False, indent=2))
-    if name == "stackchan_see":
-        return text(json.dumps(stackchan_send_impl("self.camera.take_photo", {"question":"photo"}), ensure_ascii=False, indent=2))
+        return text(json.dumps(stackchan_send_impl(name, {"expression": args.get("expression","neutral")}), ensure_ascii=False, indent=2))
+    if name == "stackchan_head_nod" or name == "stackchan_head_shake" or name == "stackchan_head_center" or name == "stackchan_see":
+        return text(json.dumps(stackchan_send_impl(name, args), ensure_ascii=False, indent=2))
     return text("Unknown tool: " + name)
 
 
