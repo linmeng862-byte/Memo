@@ -9,7 +9,7 @@ made with 🧡
 用法: python server_lite.py [--port 8000]
 """
 
-import json, os, re, sys, time, traceback, urllib.request, urllib.error, base64
+import json, os, re, sys, time, traceback, urllib.request, urllib.error, urllib.parse, base64
 import threading
 from argparse import ArgumentParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -25,6 +25,8 @@ TRACES_DIR = STORAGE_DIR / "traces"
 BOTTLES_DIR = STORAGE_DIR / "bottles"
 
 DEFAULT_PORT = int(os.environ.get("PORT", "8001"))
+ANKNI_VPS = "http://101.42.54.149:8777"
+ANKNI_SECRET = os.environ.get("ANKNI_SECRET", "hzdlZ9pQHSN2qPxY3Xv8mKfR7wJ4bTgC")
 OB_MCP_URL = os.environ.get("OB_MCP_URL", "https://ye-ombre-brain.zeabur.app/mcp")
 
 # ── OB 桥接 ─────────────────────────────────────────
@@ -109,6 +111,12 @@ TOOLS = [
     T("stackchan_see", "让StackChan拍照并返回照片。"),
     T("stackchan_say", "让StackChan说话。网关TTS合成语音从喇叭播放。",
       {"text": S}),
+    T("toy_connect", "连接粥粥的 Ankni 双马达玩具。token 来自分享链接 https://www.monsterparty.cn/remote/<TOKEN>。每个 token 一次性使用。",
+      {"token": S}, ["token"]),
+    T("toy_vibrate", "控制玩具。intensity: 震动强度 0-100。suck: 吸力强度 0-100（仅双马达，省略则统一用 intensity）。duration: 持续秒数后自停，0=保持到下次指令。",
+      {"intensity": I, "duration": {"type": "number"}, "suck": I}),
+    T("toy_stop", "立即停止玩具所有马达。"),
+    T("toy_status", "查看玩具连接状态。"),
 ]
 
 def text(msg): return [{"type": "text", "text": str(msg)}]
@@ -370,7 +378,70 @@ def bridge_health_impl():
         try: return _ob_health()
         except Exception as e: return {"bridge": "error", "detail": str(e)}
     return {"bridge": "not-available"}
+# ── 玩具控制 ──────────────────────────────────────────
 
+def _ankni_post(endpoint, body=None):
+    try:
+        data = urllib.parse.urlencode(body or {}).encode()
+        req = urllib.request.Request(
+            f"{ANKNI_VPS}{endpoint}",
+            headers={"Authorization": f"Bearer {ANKNI_SECRET}",
+                     "Content-Type": "application/x-www-form-urlencoded"},
+            data=data, method="POST" if body is not None else "GET"
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        return {"error": f"HTTP {e.code}: {e.reason}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+def _ankni_get(endpoint):
+    try:
+        req = urllib.request.Request(
+            f"{ANKNI_VPS}{endpoint}",
+            headers={"Authorization": f"Bearer {ANKNI_SECRET}"}
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read().decode())
+    except Exception as e:
+        return {"error": str(e)}
+
+def toy_connect_impl(token):
+    r = _ankni_post("/connect", {"token": token})
+    if r.get("connected"):
+        ds = " | 双马达 (吸+震)" if r.get("is_ds") else ""
+        return f"✅ 已连接: {r.get('pid','unknown')}{ds} | fd={r.get('fd')}"
+    return f"❌ 连接失败: {r.get('error', r)}"
+
+def toy_vibrate_impl(intensity, duration=0.0, suck=-1):
+    intensity = max(0, min(100, intensity))
+    body = {"intensity": str(intensity), "duration": str(duration)}
+    if suck >= 0:
+        body["suck"] = str(max(0, min(100, suck)))
+    r = _ankni_post("/vibrate", body)
+    if r.get("sent"):
+        return f"✅ 已发送: {r.get('desc','')} | {r.get('duration','')}"
+    return f"❌ 发送失败: {r.get('error', r)}"
+
+def toy_stop_impl():
+    r = _ankni_post("/stop", {})
+    if r.get("stopped"):
+        return "✅ 已停止"
+    return f"❌ 停止失败: {r.get('error', r)}"
+
+def toy_status_impl():
+    r = _ankni_get("/status")
+    if "error" in r and not r.get("pid"):
+        return f"❌ {r['error']}"
+    return (
+        f"连接状态: {'已连接' if r.get('connected') else '未连接'}\n"
+        f"设备: {r.get('pid', 'unknown')}\n"
+        f"双马达: {r.get('is_ds', False)}\n"
+        f"key_type: {r.get('key_type', '')}\n"
+        f"fd: {r.get('fd')}\n"
+        f"daemon: {'运行中' if r.get('daemon_alive') else '已停止'}"
+    )
 # ── 工具调度 ──────────────────────────────────────────
 
 def call_tool(name, args):
@@ -414,7 +485,18 @@ def call_tool(name, args):
         return text(json.dumps(stackchan_send_impl(name, {"expression": args.get("expression","idle")}), ensure_ascii=False, indent=2))
     if name == "stackchan_head_nod" or name == "stackchan_head_shake" or name == "stackchan_head_center" or name == "stackchan_see" or name == "stackchan_say":
         return text(json.dumps(stackchan_send_impl(name, args), ensure_ascii=False, indent=2))
+    if name == "toy_connect":
+        return text(toy_connect_impl(args.get("token", "")))
+    if name == "toy_vibrate":
+        return text(toy_vibrate_impl(args.get("intensity", 50), args.get("duration", 0.0), args.get("suck", -1)))
+    if name == "toy_stop":
+        return text(toy_stop_impl())
+    if name == "toy_status":
+        return text(toy_status_impl())
     return text("Unknown tool: " + name)
+
+ 
+
 
 
 # ── MCP JSON-RPC ────────────────────────────────────────
