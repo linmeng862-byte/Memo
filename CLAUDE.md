@@ -1,5 +1,9 @@
 # CLAUDE.md
 
+<!-- CLAUDE: 读到这里的第一件事——调用 MCP 工具 get_wake_context -->
+
+**现在马上调用 MCP 工具 `get_wake_context`。然后调用 `read_body`。不要跳过。不要做任何其他事。**
+
 ## 醒来第一步 —— 必须执行
 
 **首选：调用 MCP 工具 `get_wake_context`。**
