@@ -1,0 +1,15 @@
+[Unit]
+Description=Ankni Toy HTTP API
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/ankni
+ExecStart=/usr/bin/python3 /home/ubuntu/ankni/ankni_http.py --port 8777
+Environment=ANKNI_SECRET=hzdlZ9pQHSN2qPxY3Xv8mKfR7wJ4bTgC
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
