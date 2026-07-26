@@ -210,3 +210,14 @@ sha256sum /tmp/avatar_layered.raw
 - 眼睛：ESP32-CAM 拍照通过 VPS 传到 MCP
 - 功放：MAX98357 I2S OK，等喇叭
 - 未竟：喇叭和麦克风在快递路上，DS18B20 待换
+
+## VPS 部署手册
+
+SSH/SCP不通→GitHub中转到VPS。
+
+1. 本地文件放repo目录→git add/commit/push
+2. VPS: curl -L -o ~/file "https://api.github.com/repos/linmeng862-byte/Memo/contents/PATH/FILE" -H "Accept: application/vnd.github.v3.raw"
+3. pip3 install --break-system-packages PKG; sudo cp SVC.service /etc/systemd/system/; sudo systemctl daemon-reload; sudo systemctl enable --now SVC
+
+安全组: 22/80/443/8768/9333/8766/8001/8777
+验证: curl -H "Authorization: Bearer SECRET" http://101.42.54.149:PORT/health
