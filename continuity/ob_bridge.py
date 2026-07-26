@@ -253,6 +253,16 @@ def get_milestones(limit: int = 10) -> list:
     return result if isinstance(result, list) else [result]
 
 
+def get_feel_memories(limit: int = 5) -> list:
+    """从 OB 拉 feel 感受层记忆。domain='feel'。"""
+    result = _call_ob_safe("breath", {
+        "domain": "feel",
+        "max_results": limit,
+        "importance_min": 5
+    })
+    return result if isinstance(result, list) else [result]
+
+
 def get_wake_memories(limit: int = 5) -> str:
     """
     醒来时从 OB 拉最近的重要记忆。

@@ -37,12 +37,13 @@ try:
         sync_hold_this as _ob_sync_hold,
         sync_mark_moment as _ob_sync_moment,
         get_wake_memories as _ob_wake_memories,
+        get_feel_memories as _ob_feel_memories,
         rebuild_continuity_from_ob as _ob_rebuild,
         bridge_health as _ob_health
     )
 except ImportError:
     _ob_sync_texture = _ob_sync_hold = _ob_sync_moment = None
-    _ob_wake_memories = _ob_rebuild = _ob_health = None
+    _ob_feel_memories = _ob_wake_memories = _ob_rebuild = _ob_health = None
 # ── 工具函数 ──────────────────────────────────────────
 
 def _now():
@@ -207,6 +208,18 @@ def wake_context_impl():
         for u in unres: parts.append(f"  - {u}")
     if ob_mem:
         parts.append(""); parts.append(ob_mem)
+    # OB feel 感受层
+    if _ob_feel_memories:
+        try:
+            feels = _ob_feel_memories(limit=3)
+            if feels and isinstance(feels, list) and len(feels) > 0:
+                parts.append(""); parts.append("穿过时间的感受：")
+                for f in feels:
+                    if isinstance(f, dict):
+                        c = f.get("content", "") or f.get("text", "")
+                        if c:
+                            parts.append(f"  · {c[:150]}")
+        except: pass
     if ob_rebuilt and total == 0:
         parts.append(""); parts.append("（从 Ombre Brain 重建了接力棒。本地存储曾被清空，但记忆没有丢。）")
     parts.append("")
