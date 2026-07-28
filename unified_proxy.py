@@ -10,7 +10,7 @@ async def handler(reader, writer):
         first = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=5)
         is_ws = b"Upgrade: websocket" in first
 
-        # Check request path for avatar/capture routing
+        # Check request path for routing
         first_line = first.split(b"\r\n")[0].decode()
         path = first_line.split(" ")[1] if " " in first_line else "/"
         is_capture = path.startswith("/staged_") or path.startswith("/capture") or "avatar" in path
@@ -35,16 +35,28 @@ async def handler(reader, writer):
             else:
                 new_lines.append(line)
         first_fixed = b"\r\n".join(new_lines)
+
         br, bw = await asyncio.open_connection(*target)
         bw.write(first_fixed); await bw.drain()
-        async def pipe(r, w):
+
+        if is_ws:
+            # WebSocket: full duplex pipe
+            async def pipe(r, w):
+                try:
+                    while True:
+                        d = await asyncio.wait_for(r.read(32768), timeout=300)
+                        if not d: break
+                        w.write(d); await w.drain()
+                except: pass
+            await asyncio.gather(pipe(reader, bw), pipe(br, writer))
+        else:
+            # HTTP: only pipe response back, don't wait for more client data
             try:
                 while True:
-                    d = await asyncio.wait_for(r.read(32768), timeout=300)
+                    d = await asyncio.wait_for(br.read(65536), timeout=30)
                     if not d: break
-                    w.write(d); await w.drain()
+                    writer.write(d); await writer.drain()
             except: pass
-        await asyncio.gather(pipe(reader, bw), pipe(br, writer))
     except: pass
     finally:
         try: writer.close()
