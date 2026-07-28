@@ -262,6 +262,69 @@ def get_feel_memories(limit: int = 5) -> list:
     return result if isinstance(result, list) else [result]
 
 
+def read_feel_from_ob(limit: int = 10) -> dict:
+    """
+    专门读 OB feel 桶。三策略：
+    1. 按 feel 标签查
+    2. 按高重要度+feel关键词查
+    3. 纯高重要度兜底
+    返回格式化的 feel 记忆列表。
+    """
+    memories = []
+    strategy = ""
+
+    # 策略1：feel 标签
+    r = _call_ob_safe("breath", {"tags": "feel", "max_results": limit})
+    if isinstance(r, list) and len(r) > 0:
+        memories = r
+        strategy = "feel标签"
+
+    # 策略2：高重要度
+    if not memories:
+        r = _call_ob_safe("breath", {"importance_min": 8, "max_results": limit})
+        if isinstance(r, list) and len(r) > 0:
+            memories = r
+            strategy = "高重要度(>=8)"
+
+    # 策略3：兜底
+    if not memories:
+        r = _call_ob_safe("breath", {"importance_min": 5, "max_results": limit})
+        if isinstance(r, list):
+            memories = r
+            strategy = "兜底(>=5)"
+    elif len(memories) < 3:
+        # 补充更多
+        r = _call_ob_safe("breath", {"importance_min": 5, "max_results": limit})
+        if isinstance(r, list):
+            existing = {m.get("content","") for m in memories if isinstance(m, dict)}
+            for m in r:
+                if isinstance(m, dict) and m.get("content","") not in existing:
+                    memories.append(m)
+
+    # 格式化输出
+    items = []
+    for m in memories:
+        if isinstance(m, dict):
+            content = m.get("content", "") or m.get("text", "")
+            ts = m.get("timestamp", "") or m.get("ts", "") or m.get("created_at", "")
+            extra = m.get("extra", {})
+            if isinstance(extra, str):
+                try: extra = json.loads(extra)
+                except: extra = {}
+            items.append({
+                "content": content[:300],
+                "timestamp": str(ts)[:19] if ts else "",
+                "importance": m.get("importance", ""),
+                "tags": m.get("tags", ""),
+            })
+
+    return {
+        "strategy": strategy,
+        "count": len(items),
+        "feel_memories": items
+    }
+
+
 def get_wake_memories(limit: int = 5) -> str:
     """
     醒来时从 OB 拉最近的重要记忆。

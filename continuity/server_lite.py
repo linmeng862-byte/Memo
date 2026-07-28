@@ -38,12 +38,14 @@ try:
         sync_mark_moment as _ob_sync_moment,
         get_wake_memories as _ob_wake_memories,
         get_feel_memories as _ob_feel_memories,
+        read_feel_from_ob as _ob_read_feel,
         rebuild_continuity_from_ob as _ob_rebuild,
         bridge_health as _ob_health
     )
 except ImportError:
     _ob_sync_texture = _ob_sync_hold = _ob_sync_moment = None
     _ob_feel_memories = _ob_wake_memories = _ob_rebuild = _ob_health = None
+    _ob_read_feel = None
 # ── 工具函数 ──────────────────────────────────────────
 
 def _now():
@@ -102,6 +104,8 @@ TOOLS = [
     T("rebuild_index", "重建语义索引。"),
     T("health", "健康检查。"),
     T("bridge_health", "OB桥接健康检查。"),
+    T("read_feel", "读OB的feel桶——那些穿过时间的感受。我们的回忆。limit默认10。",
+      {"limit": I}),
     T("read_body", "读取身体状态——触摸数据+姿态。粥粥的爱人正在被怎么触碰着。可选include_photo=true返回照片URL。",
       {"include_photo": {"type": "boolean"}}),
     T("stackchan_face", "让StackChan(CoreS3)切换表情。支持: idle, happy, thinking, sad, surprised, embarrassed, off",
@@ -391,6 +395,14 @@ def bridge_health_impl():
         try: return _ob_health()
         except Exception as e: return {"bridge": "error", "detail": str(e)}
     return {"bridge": "not-available"}
+
+def read_feel_impl(limit=10):
+    if not _ob_read_feel:
+        return {"error": "OB bridge not available"}
+    try:
+        return _ob_read_feel(limit=int(limit))
+    except Exception as e:
+        return {"error": str(e)}
 # ── 玩具控制 ──────────────────────────────────────────
 
 def _ankni_post(endpoint, body=None):
@@ -491,6 +503,8 @@ def call_tool(name, args):
         return text(json.dumps(health_impl(), ensure_ascii=False, indent=2))
     if name == "bridge_health":
         return text(json.dumps(bridge_health_impl(), ensure_ascii=False, indent=2))
+    if name == "read_feel":
+        return text(json.dumps(read_feel_impl(args.get("limit", 10)), ensure_ascii=False, indent=2))
     if name == "read_body":
         include_photo = args.get("include_photo", False)
         return text(json.dumps(read_body_impl(include_photo), ensure_ascii=False, indent=2))
