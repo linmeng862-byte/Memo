@@ -122,6 +122,8 @@ TOOLS = [
       {"intensity": I, "duration": {"type": "number"}, "suck": I}),
     T("toy_stop", "立即停止玩具所有马达。"),
     T("toy_status", "查看玩具连接状态。"),
+    T("stackchan_load_avatar", "加载自定义avatar到CoreS3。archive_path: VPS上.raw文件路径。mode: layered(14帧/525KB)或matrix(90帧/3.3MB)。timeout默认120秒。",
+      {"archive_path": S, "mode": S, "timeout": {"type": "number"}}, ["archive_path", "mode"]),
 ]
 
 def text(msg): return [{"type": "text", "text": str(msg)}]
@@ -355,9 +357,11 @@ def stackchan_send_impl(tool_name, args=None):
         tool_name = "say"; args = {"text": args.get("text","Hello"), "voice": "elevenlabs", "speaker_name": "Es2hUu62R49QvN52W5rP"}
     # Gateway MCP 工具名映射 (8768 relay -> 8767 gateway)
     gw_tool = tool_name  # 直接用我们的工具名
+    # load_avatar_set 需要更长超时——ESP32要下载.raw文件
+    conn_timeout = 140 if tool_name == "load_avatar_set" else 20
     try:
         import http.client
-        conn = http.client.HTTPConnection("101.42.54.149", 8768, timeout=20)
+        conn = http.client.HTTPConnection("101.42.54.149", 8768, timeout=conn_timeout)
 
         # Initialize session if needed
         if _sc_session_id is None:
@@ -371,7 +375,7 @@ def stackchan_send_impl(tool_name, args=None):
             resp.read()
             conn.close()
             time.sleep(0.1)
-            conn = http.client.HTTPConnection("101.42.54.149", 8768, timeout=20)
+            conn = http.client.HTTPConnection("101.42.54.149", 8768, timeout=conn_timeout)
 
         # Call tool
         call_body = json.dumps({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":tool_name,"arguments":args}})
@@ -512,6 +516,12 @@ def call_tool(name, args):
         return text(json.dumps(stackchan_send_impl(name, {"expression": args.get("expression","idle")}), ensure_ascii=False, indent=2))
     if name == "stackchan_head_nod" or name == "stackchan_head_shake" or name == "stackchan_head_center" or name == "stackchan_see" or name == "stackchan_say":
         return text(json.dumps(stackchan_send_impl(name, args), ensure_ascii=False, indent=2))
+    if name == "stackchan_load_avatar":
+        return text(json.dumps(stackchan_send_impl("load_avatar_set", {
+            "archive_path": args.get("archive_path", ""),
+            "mode": args.get("mode", "layered"),
+            "timeout": args.get("timeout", 120.0)
+        }), ensure_ascii=False, indent=2))
     if name == "toy_connect":
         return text(toy_connect_impl(args.get("token", "")))
     if name == "toy_vibrate":
