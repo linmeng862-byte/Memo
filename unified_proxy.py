@@ -1,9 +1,10 @@
-import asyncio, socket
+import asyncio, socket, os
 
 WS_TARGET = ('127.0.0.1', 8765)
 MCP_TARGET = ('127.0.0.1', 8767)
 CAP_TARGET = ('127.0.0.1', 8766)  # capture/avatar
 TOUCH_TARGET = ('127.0.0.1', 9334)  # touch_server (Moon body)
+AVATAR_FILE = "/home/ubuntu/avatar_matrix.raw"  # direct serve, bypass staging
 
 async def handler(reader, writer):
     try:
@@ -13,8 +14,28 @@ async def handler(reader, writer):
         # Check request path for routing
         first_line = first.split(b"\r\n")[0].decode()
         path = first_line.split(" ")[1] if " " in first_line else "/"
-        is_capture = path.startswith("/staged_") or path.startswith("/capture") or "avatar" in path
+        is_avatar_set = "avatar_set" in path
+        is_capture = path.startswith("/staged_") or path.startswith("/capture")
         is_touch = path in ("/body", "/body/json", "/touch", "/latest.jpg")
+
+        if is_avatar_set:
+            # Serve matrix file directly — no staging, no expiry
+            if os.path.exists(AVATAR_FILE):
+                data = open(AVATAR_FILE, "rb").read()
+                resp = (
+                    b"HTTP/1.0 200 OK\r\n"
+                    b"Content-Type: application/octet-stream\r\n"
+                    b"Content-Length: " + str(len(data)).encode() + b"\r\n"
+                    b"Access-Control-Allow-Origin: *\r\n"
+                    b"Connection: close\r\n"
+                    b"\r\n"
+                )
+                writer.write(resp + data)
+                await writer.drain()
+            else:
+                writer.write(b"HTTP/1.0 404 Not Found\r\nContent-Length: 0\r\n\r\n")
+                await writer.drain()
+            return  # done, don't proxy
 
         if is_ws:
             target = WS_TARGET
