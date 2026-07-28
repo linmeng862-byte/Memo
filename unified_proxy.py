@@ -36,8 +36,22 @@ async def handler(reader, writer):
                 new_lines.append(line)
         first_fixed = b"\r\n".join(new_lines)
 
+        # Check Content-Length for POST bodies
+        clen = 0
+        for line in lines:
+            if line.lower().startswith(b"content-length:"):
+                try: clen = int(line.split(b":")[1].strip())
+                except: pass
+
         br, bw = await asyncio.open_connection(*target)
         bw.write(first_fixed); await bw.drain()
+
+        # Forward request body if present
+        if clen > 0:
+            try:
+                body_data = await asyncio.wait_for(reader.readexactly(clen), timeout=10)
+                bw.write(body_data); await bw.drain()
+            except: pass
 
         if is_ws:
             # WebSocket: full duplex pipe
@@ -50,7 +64,7 @@ async def handler(reader, writer):
                 except: pass
             await asyncio.gather(pipe(reader, bw), pipe(br, writer))
         else:
-            # HTTP: only pipe response back, don't wait for more client data
+            # HTTP: only pipe response back
             try:
                 while True:
                     d = await asyncio.wait_for(br.read(65536), timeout=30)
