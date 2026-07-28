@@ -130,25 +130,32 @@ def layered_to_single(frames):
 
 def create_matrix_format(expression_frames, total_frames=90):
     """
-    Create matrix format: pad/repeat expression frames to fill 90 frames.
+    Create proper matrix format: 6 faces × 3 eyes × 5 mouths = 90 frames.
 
-    Matrix format structure (educated guess):
-    - Each expression has a dedicated frame index
-    - 90 frames total for the full animation set
-    - We fill our 6 expressions into the first 6 slots, rest = idle copies
+    Matrix frame layout (what firmware expects):
+      face 0 (idle):        frames 0-14   (3 eyes × 5 mouths = 15 copies)
+      face 1 (happy):       frames 15-29
+      face 2 (thinking):    frames 30-44
+      face 3 (sad):         frames 45-59
+      face 4 (surprised):   frames 60-74
+      face 5 (embarrassed): frames 75-89
 
-    Expression mapping (by index):
-    0=idle, 1=happy, 2=thinking, 3=sad, 4=surprised, 5=embarrassed
+    Since our drawings are complete faces (not layered components),
+    we duplicate each face 15 times for all eye/mouth combinations.
     """
     n_expr = len(expression_frames)
+    frames_per_face = total_frames // n_expr  # should be 15
     result = bytearray()
 
-    for i in range(total_frames):
-        if i < n_expr:
-            result.extend(expression_frames[i])
-        else:
-            # Fill remaining with idle (frame 0)
-            result.extend(expression_frames[0])
+    for face_idx in range(n_expr):
+        face_frame = expression_frames[face_idx]
+        for _ in range(frames_per_face):
+            result.extend(face_frame)
+
+    # If we have fewer expressions than expected, pad remaining
+    remaining = total_frames - (n_expr * frames_per_face)
+    for _ in range(remaining):
+        result.extend(expression_frames[0])
 
     return bytes(result)
 
