@@ -546,6 +546,7 @@ def call_tool(name, args):
     if name == "stackchan_see":
         global _last_photo_b64, _last_photo_time
         # Fire camera in background (takes 60-90s — too slow to block)
+        _capture_error = []
         def _capture():
             global _last_photo_b64, _last_photo_time
             try:
@@ -558,12 +559,18 @@ def call_tool(name, args):
                     if b64:
                         _last_photo_b64 = b64
                         _last_photo_time = time.time()
-            except: pass
+                    else:
+                        _capture_error.append("no base64 in response: " + str(inner)[:200])
+                else:
+                    _capture_error.append("no content: " + str(r)[:200])
+            except Exception as e:
+                _capture_error.append(str(e))
         threading.Thread(target=_capture, daemon=True).start()
         # Return cached photo if available (from previous capture)
         if _last_photo_b64:
             return image(_last_photo_b64, "image/jpeg")
-        return text(json.dumps({"status": "capture started", "tip": "Call again in ~90s"}, ensure_ascii=False, indent=2))
+        err_info = _capture_error[0] if _capture_error else "background thread still running"
+        return text(json.dumps({"status": "capture started", "tip": "Call again in ~90s", "debug": err_info}, ensure_ascii=False, indent=2))
     if name == "stackchan_head_nod" or name == "stackchan_head_shake" or name == "stackchan_head_center" or name == "stackchan_say":
         return text(json.dumps(stackchan_send_impl(name, args), ensure_ascii=False, indent=2))
     if name == "stackchan_load_avatar":
