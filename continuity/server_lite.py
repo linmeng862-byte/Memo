@@ -545,7 +545,8 @@ def call_tool(name, args):
     if name == "stackchan_face":
         return text(json.dumps(stackchan_send_impl(name, {"expression": args.get("expression","idle")}), ensure_ascii=False, indent=2))
     if name == "stackchan_see":
-        global _last_photo_b64, _last_photo_time
+        global _last_photo_b64, _last_photo_time, _capture_error
+        _capture_error = ""  # clear stale error before new capture
         # Fire camera in background (takes 60-90s — too slow to block)
         def _capture():
             global _last_photo_b64, _last_photo_time, _capture_error
