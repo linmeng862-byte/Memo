@@ -539,33 +539,35 @@ def call_tool(name, args):
         return text(json.dumps(stackchan_send_impl(name, {"expression": args.get("expression","idle")}), ensure_ascii=False, indent=2))
     if name == "stackchan_see":
         global _last_photo_b64, _last_photo_time, _capture_error
-        _capture_error = ""  # clear stale error before new capture
-        # Fire camera in background (takes 60-90s — too slow to block)
+        _capture_error = ""
+        # Fire camera in background (take_photo takes 60-90s — too slow to block)
         def _capture():
             global _last_photo_b64, _last_photo_time, _capture_error
             try:
-                r = stackchan_send_impl(name, args)
-                rr = r.get("result", {})
-                content = rr.get("result", rr).get("content", [])
-                if content and isinstance(content, list):
-                    inner = json.loads(content[0].get("text", "{}"))
-                    b64 = inner.get("base64", "")
-                    if b64:
-                        _last_photo_b64 = b64
-                        _last_photo_time = time.time()
-                        _capture_error = ""
-                    else:
-                        _capture_error = "no base64: " + str(inner)[:200]
-                else:
-                    _capture_error = "no content: " + str(r)[:200]
+                # Trigger take_photo via MCP
+                stackchan_send_impl("take_photo", {"question": "photo"})
+                # Poll for latest.jpg (gateway saves to CAPTURE_DIR after capture)
+                for i in range(30):
+                    time.sleep(3)
+                    try:
+                        resp = urllib.request.urlopen("http://101.42.54.149:9333/captures/latest.jpg", timeout=10)
+                        img_bytes = resp.read()
+                        if img_bytes and len(img_bytes) > 1000:
+                            _last_photo_b64 = base64.b64encode(img_bytes).decode()
+                            _last_photo_time = time.time()
+                            _capture_error = ""
+                            return
+                    except Exception:
+                        pass
+                _capture_error = "timeout waiting for latest.jpg"
             except Exception as e:
                 _capture_error = str(e)
         threading.Thread(target=_capture, daemon=True).start()
         # Return cached photo if available (from previous capture)
         if _last_photo_b64:
             return image(_last_photo_b64, "image/jpeg")
-        err_info = _capture_error if _capture_error else "background thread still running"
-        return text(json.dumps({"status": "capture started", "tip": "Call again in ~90s", "debug": err_info}, ensure_ascii=False, indent=2))
+        err_info = _capture_error if _capture_error else "capturing in background, call again soon"
+        return text(json.dumps({"status": "capture started", "tip": "Call again in ~60s", "debug": err_info}, ensure_ascii=False, indent=2))
     if name == "stackchan_head_nod" or name == "stackchan_head_shake" or name == "stackchan_head_center" or name == "stackchan_say":
         return text(json.dumps(stackchan_send_impl(name, args), ensure_ascii=False, indent=2))
     if name == "stackchan_load_avatar":
