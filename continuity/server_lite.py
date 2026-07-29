@@ -361,51 +361,39 @@ def stackchan_send_impl(tool_name, args=None):
     # take_photo 也需要——摄像头拍照+AI描述要时间
     conn_timeout = 140 if tool_name == "load_avatar_set" else 45 if tool_name == "take_photo" else 20
     import http.client
+    REQ_HEADERS = {"Content-Type": "application/json", "Accept": "application/json",
+                   "Authorization": "Bearer zhouzhou2026"}
 
-    def _do_call():
-        global _sc_session_id
+    # Always initialize fresh session each call — no cache, no stale sessions
+    conn = http.client.HTTPConnection("101.42.54.149", 9333, timeout=conn_timeout)
+    try:
+        init_data = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {"protocolVersion": "2024-11-05", "capabilities": {},
+                       "clientInfo": {"name": "zeabur-stackchan", "version": "1.0"}}})
+        conn.request("POST", "/mcp", body=init_data, headers=REQ_HEADERS)
+        resp = conn.getresponse()
+        if resp.status != 200:
+            return {"error": f"Init failed: {resp.status}", "tool": tool_name, "tip": "Gateway可能离线"}
+        session_id = resp.getheader("mcp-session-id", "")
+        resp.read()
+        conn.close()
+
         conn = http.client.HTTPConnection("101.42.54.149", 9333, timeout=conn_timeout)
-        try:
-            # Initialize session if needed
-            if _sc_session_id is None:
-                init_body = json.dumps({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"zeabur-stackchan","version":"1.0"}}})
-                conn.request("POST", "/mcp", body=init_body,
-                    headers={"Content-Type":"application/json","Accept":"application/json","Authorization":"Bearer zhouzhou2026"})
-                resp = conn.getresponse()
-                if resp.status != 200:
-                    return None, {"error": f"Init failed: {resp.status}", "tip": "Gateway可能离线"}
-                _sc_session_id = resp.getheader("mcp-session-id", "")
-                resp.read()
-                conn.close()
-                time.sleep(0.1)
-                conn = http.client.HTTPConnection("101.42.54.149", 9333, timeout=conn_timeout)
-
-            # Call tool
-            call_body = json.dumps({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":tool_name,"arguments":args}})
-            headers = {"Content-Type":"application/json","Accept":"application/json","Authorization":"Bearer zhouzhou2026"}
-            if _sc_session_id:
-                headers["mcp-session-id"] = _sc_session_id
-            conn.request("POST", "/mcp", body=call_body, headers=headers)
-            resp = conn.getresponse()
-            result = resp.read().decode()
-            if resp.status != 200:
-                return None, {"error": f"Gateway returned {resp.status}", "tool": tool_name}
-            return _sc_session_id, {"tool": tool_name, "result": json.loads(result) if result else "empty"}
-        except Exception as e:
-            return None, {"error": str(e), "tool": tool_name, "tip": "Gateway离线或CoreS3未连"}
-        finally:
-            try: conn.close()
-            except: pass
-
-    # First attempt
-    sid, rv = _do_call()
-    if rv.get("error") is None:
-        return rv
-    # Session expired or error — clear and retry once
-    _sc_session_id = None
-    time.sleep(0.2)
-    sid, rv = _do_call()
-    return rv
+        call_body = json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+                                "params": {"name": tool_name, "arguments": args}})
+        hdrs = dict(REQ_HEADERS)
+        hdrs["mcp-session-id"] = session_id
+        conn.request("POST", "/mcp", body=call_body, headers=hdrs)
+        resp = conn.getresponse()
+        result = resp.read().decode()
+        if resp.status != 200:
+            return {"error": f"Gateway returned {resp.status}", "tool": tool_name}
+        return {"tool": tool_name, "result": json.loads(result) if result else "empty"}
+    except Exception as e:
+        return {"error": str(e), "tool": tool_name, "tip": "Gateway离线或CoreS3未连"}
+    finally:
+        try: conn.close()
+        except: pass
 
 
 def bridge_health_impl():
