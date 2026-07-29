@@ -540,31 +540,29 @@ def call_tool(name, args):
     if name == "stackchan_face":
         return text(json.dumps(stackchan_send_impl(name, {"expression": args.get("expression","idle")}), ensure_ascii=False, indent=2))
     if name == "stackchan_see":
-        result = stackchan_send_impl(name, args)
-        # Try to fetch photo from VPS → display as image in app
+        # Fire camera capture in background (ESP32 takes 60-90s — too slow to block)
+        t = threading.Thread(target=lambda: stackchan_send_impl(name, args), daemon=True)
+        t.start()
+        # Return latest photo from VPS (from previous capture)
         try:
-            r = result.get("result", {})
-            content = r.get("result", r).get("content", [])
-            if content and isinstance(content, list):
-                inner = json.loads(content[0].get("text", "{}"))
-                image_path = inner.get("image_path", "")
-                if image_path:
-                    import os as _os
-                    filename = _os.path.basename(image_path)
-                    try:
-                        # Pull photo from VPS capture server
-                        req = urllib.request.Request(
-                            f"http://101.42.54.149:9333/captures/{filename}",
-                            headers={"Authorization": "Bearer zhouzhou2026"}
-                        )
-                        with urllib.request.urlopen(req, timeout=15) as resp:
-                            b64 = base64.b64encode(resp.read()).decode()
-                            if b64:
-                                return image(b64, "image/jpeg")
-                    except Exception:
-                        pass
-        except: pass
-        return text(json.dumps(result, ensure_ascii=False, indent=2))
+            req = urllib.request.Request(
+                "http://101.42.54.149:9333/captures/",
+                headers={"Authorization": "Bearer zhouzhou2026"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                html = resp.read().decode()
+                files = re.findall(r'href="(capture_\d+\.jpg)"', html)
+                if files:
+                    latest = sorted(files)[-1]
+                    req2 = urllib.request.Request(
+                        f"http://101.42.54.149:9333/captures/{latest}",
+                        headers={"Authorization": "Bearer zhouzhou2026"})
+                    with urllib.request.urlopen(req2, timeout=15) as resp2:
+                        b64 = base64.b64encode(resp2.read()).decode()
+                        if b64:
+                            return image(b64, "image/jpeg")
+        except Exception:
+            pass
+        return text(json.dumps({"status": "capture triggered", "tip": "Call again in ~90s to see the photo"}, ensure_ascii=False, indent=2))
     if name == "stackchan_head_nod" or name == "stackchan_head_shake" or name == "stackchan_head_center" or name == "stackchan_say":
         return text(json.dumps(stackchan_send_impl(name, args), ensure_ascii=False, indent=2))
     if name == "stackchan_load_avatar":
