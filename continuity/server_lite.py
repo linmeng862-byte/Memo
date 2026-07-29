@@ -546,16 +546,14 @@ def call_tool(name, args):
         # Return latest photo from VPS (from previous capture)
         try:
             req = urllib.request.Request(
-                "http://101.42.54.149:9333/captures/",
-                headers={"Authorization": "Bearer zhouzhou2026"})
+                "http://101.42.54.149:9333/captures/")
             with urllib.request.urlopen(req, timeout=10) as resp:
                 html = resp.read().decode()
                 files = re.findall(r'href="(capture_\d+\.jpg)"', html)
                 if files:
                     latest = sorted(files)[-1]
                     req2 = urllib.request.Request(
-                        f"http://101.42.54.149:9333/captures/{latest}",
-                        headers={"Authorization": "Bearer zhouzhou2026"})
+                        f"http://101.42.54.149:9333/captures/{latest}")
                     with urllib.request.urlopen(req2, timeout=15) as resp2:
                         b64 = base64.b64encode(resp2.read()).decode()
                         if b64:
