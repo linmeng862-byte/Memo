@@ -410,17 +410,10 @@ def stackchan_send_impl(tool_name, args=None):
             try: conn.close()
             except: pass
 
-    # Always fresh session
+    # Always fresh session — no retry (retrying say = double speak)
     sid = _init_session()
     if sid is None:
         return {"error": "MCP initialize failed", "tool": tool_name, "tip": "Gateway可能离线"}
-    rv = _do_call(sid)
-    if rv.get("error") is None:
-        return rv
-    # Retry once with new session
-    sid = _init_session()
-    if sid is None:
-        return rv
     return _do_call(sid)
 
 
