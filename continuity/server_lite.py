@@ -540,27 +540,18 @@ def call_tool(name, args):
     if name == "stackchan_face":
         return text(json.dumps(stackchan_send_impl(name, {"expression": args.get("expression","idle")}), ensure_ascii=False, indent=2))
     if name == "stackchan_see":
-        # Fire camera capture in background (ESP32 takes 60-90s — too slow to block)
-        t = threading.Thread(target=lambda: stackchan_send_impl(name, args), daemon=True)
-        t.start()
-        # Return latest photo from VPS (from previous capture)
+        result = stackchan_send_impl(name, args)
+        # Extract base64 from gateway response (capture_server now includes it)
         try:
-            req = urllib.request.Request(
-                "http://101.42.54.149:9333/captures/")
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                html = resp.read().decode()
-                files = re.findall(r'href="(capture_\d+\.jpg)"', html)
-                if files:
-                    latest = sorted(files)[-1]
-                    req2 = urllib.request.Request(
-                        f"http://101.42.54.149:9333/captures/{latest}")
-                    with urllib.request.urlopen(req2, timeout=15) as resp2:
-                        b64 = base64.b64encode(resp2.read()).decode()
-                        if b64:
-                            return image(b64, "image/jpeg")
-        except Exception:
-            pass
-        return text(json.dumps({"status": "capture triggered", "tip": "Call again in ~90s to see the photo"}, ensure_ascii=False, indent=2))
+            r = result.get("result", {})
+            content = r.get("result", r).get("content", [])
+            if content and isinstance(content, list):
+                inner = json.loads(content[0].get("text", "{}"))
+                b64 = inner.get("base64", "")
+                if b64:
+                    return image(b64, "image/jpeg")
+        except: pass
+        return text(json.dumps(result, ensure_ascii=False, indent=2))
     if name == "stackchan_head_nod" or name == "stackchan_head_shake" or name == "stackchan_head_center" or name == "stackchan_say":
         return text(json.dumps(stackchan_send_impl(name, args), ensure_ascii=False, indent=2))
     if name == "stackchan_load_avatar":
