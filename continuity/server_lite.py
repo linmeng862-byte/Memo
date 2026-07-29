@@ -358,7 +358,8 @@ def stackchan_send_impl(tool_name, args=None):
     # Gateway MCP 工具名映射 (8768 relay -> 8767 gateway)
     gw_tool = tool_name  # 直接用我们的工具名
     # load_avatar_set 需要更长超时——ESP32要下载.raw文件
-    conn_timeout = 140 if tool_name == "load_avatar_set" else 20
+    # take_photo 也需要——摄像头拍照+AI描述要时间
+    conn_timeout = 140 if tool_name == "load_avatar_set" else 45 if tool_name == "take_photo" else 20
     try:
         import http.client
         conn = http.client.HTTPConnection("101.42.54.149", 8768, timeout=conn_timeout)
