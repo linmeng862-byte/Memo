@@ -541,15 +541,28 @@ def call_tool(name, args):
         return text(json.dumps(stackchan_send_impl(name, {"expression": args.get("expression","idle")}), ensure_ascii=False, indent=2))
     if name == "stackchan_see":
         result = stackchan_send_impl(name, args)
-        # Extract base64 from gateway response → display as image in app
+        # Try to fetch photo from VPS → display as image in app
         try:
             r = result.get("result", {})
             content = r.get("result", r).get("content", [])
             if content and isinstance(content, list):
                 inner = json.loads(content[0].get("text", "{}"))
-                b64 = inner.get("base64", "")
-                if b64:
-                    return image(b64, "image/jpeg")
+                image_path = inner.get("image_path", "")
+                if image_path:
+                    import os as _os
+                    filename = _os.path.basename(image_path)
+                    try:
+                        # Pull photo from VPS capture server
+                        req = urllib.request.Request(
+                            f"http://101.42.54.149:9333/captures/{filename}",
+                            headers={"Authorization": "Bearer zhouzhou2026"}
+                        )
+                        with urllib.request.urlopen(req, timeout=15) as resp:
+                            b64 = base64.b64encode(resp.read()).decode()
+                            if b64:
+                                return image(b64, "image/jpeg")
+                    except Exception:
+                        pass
         except: pass
         return text(json.dumps(result, ensure_ascii=False, indent=2))
     if name == "stackchan_head_nod" or name == "stackchan_head_shake" or name == "stackchan_head_center" or name == "stackchan_say":

@@ -131,6 +131,9 @@ export async function claudeQuery(options) {
         '--verbose',
         '--include-partial-messages',
         '--dangerously-skip-permissions',
+        '--add-dir', 'C:\\Users\\123\\Chat-C\\data\\stickers',
+
+
     ];
     if (resume)
         args.push('--resume', resume);
@@ -158,12 +161,14 @@ export async function claudeQuery(options) {
             resolve(result);
         };
         try {
-            child = spawn('claude', args, {
+            child = spawn('C:\\Users\\123\\AppData\\Roaming\\npm\\bun.cmd', ['E:\\claude-code-rebuilt-main\\claude-code-rebuilt-main\\dist\\cli.js', ...args], {
                 cwd,
                 stdio: ['pipe', 'pipe', 'pipe'],
                 env: { ...process.env },
+                shell: true,
             });
         }
+
         catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             finish({ text: '', sessionId: '', error: `Failed to spawn claude: ${msg}` });
@@ -176,7 +181,7 @@ export async function claudeQuery(options) {
         const timeoutId = setTimeout(() => {
             logger.warn('Claude CLI query timed out, killing process');
             child.kill('SIGTERM');
-            const partialText = parserState.textParts.join('\n').trim();
+             const partialText = parserState.textParts.join('\n').trim().replace(/^C:\\[^\n]+\.\w+$/gm, '').replace(/---\n?/g, '').replace(/\n{2,}/g, '\n\n').trim();
             finish({
                 text: partialText,
                 sessionId: parserState.sessionId,
@@ -219,6 +224,7 @@ export async function claudeQuery(options) {
                 logger.error('Claude CLI exited with error', { code, stderr: stderr.slice(0, 500) });
             }
             const fullText = parserState.textParts.join('\n').trim();
+            //
             if (!fullText && !parserState.errorMessage) {
                 parserState.errorMessage = 'Claude returned an empty response.';
             }

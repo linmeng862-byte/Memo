@@ -467,6 +467,9 @@ async function sendToClaude(userText, imageItem, fileItem, fromUserId, contextTo
         function emitText(text, role) {
             if (!text.trim())
                 return;
+            text = text.replace(/^C:\\[^\n]+\.\w+$/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+            if (!text.trim())
+                return;
             // 若上一次发送失败留下了 pendingRetry，先用它原本的 role 单独补发，
             // 不要和当前 role 的文本合并（避免 interstitial 内容混进 final 答案）。
             if (pendingRetry) {
