@@ -360,40 +360,40 @@ def stackchan_send_impl(tool_name, args=None):
     # load_avatar_set 需要更长超时——ESP32要下载.raw文件
     # take_photo 也需要——摄像头拍照+AI描述要时间
     conn_timeout = 140 if tool_name == "load_avatar_set" else 45 if tool_name == "take_photo" else 20
-    import http.client
-    REQ_HEADERS = {"Content-Type": "application/json", "Accept": "application/json",
-                   "Authorization": "Bearer zhouzhou2026"}
+    import urllib.request
 
-    # Always initialize fresh session each call — no cache, no stale sessions
-    conn = http.client.HTTPConnection("101.42.54.149", 9333, timeout=conn_timeout)
-    try:
-        init_data = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize",
-            "params": {"protocolVersion": "2024-11-05", "capabilities": {},
-                       "clientInfo": {"name": "zeabur-stackchan", "version": "1.0"}}})
-        conn.request("POST", "/mcp", body=init_data, headers=REQ_HEADERS)
-        resp = conn.getresponse()
-        if resp.status != 200:
-            return {"error": f"Init failed: {resp.status}", "tool": tool_name, "tip": "Gateway可能离线"}
-        session_id = resp.getheader("mcp-session-id", "")
-        resp.read()
-        conn.close()
+    def _mcp_post(body_dict, extra_headers=None):
+        data = json.dumps(body_dict).encode("utf-8")
+        hdrs = {"Content-Type": "application/json", "Accept": "application/json",
+                "Authorization": "Bearer zhouzhou2026"}
+        if extra_headers:
+            hdrs.update(extra_headers)
+        req = urllib.request.Request("http://101.42.54.149:9333/mcp", data=data,
+                                     headers=hdrs, method="POST")
+        try:
+            resp = urllib.request.urlopen(req, timeout=conn_timeout)
+            return resp.status, resp.read().decode("utf-8"), dict(resp.headers)
+        except Exception as e:
+            return None, str(e), {}
 
-        conn = http.client.HTTPConnection("101.42.54.149", 9333, timeout=conn_timeout)
-        call_body = json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/call",
-                                "params": {"name": tool_name, "arguments": args}})
-        hdrs = dict(REQ_HEADERS)
-        hdrs["mcp-session-id"] = session_id
-        conn.request("POST", "/mcp", body=call_body, headers=hdrs)
-        resp = conn.getresponse()
-        result = resp.read().decode()
-        if resp.status != 200:
-            return {"error": f"Gateway returned {resp.status}", "tool": tool_name}
-        return {"tool": tool_name, "result": json.loads(result) if result else "empty"}
-    except Exception as e:
-        return {"error": str(e), "tool": tool_name, "tip": "Gateway离线或CoreS3未连"}
-    finally:
-        try: conn.close()
-        except: pass
+    # Always fresh session per call
+    status, result, hdrs = _mcp_post({
+        "jsonrpc": "2.0", "id": 1, "method": "initialize",
+        "params": {"protocolVersion": "2024-11-05", "capabilities": {},
+                   "clientInfo": {"name": "zeabur-stackchan", "version": "1.0"}}
+    })
+    if status != 200:
+        return {"error": f"Init failed: {result}", "tool": tool_name, "tip": "Gateway可能离线"}
+    session_id = hdrs.get("mcp-session-id", "")
+
+    status, result, _ = _mcp_post({
+        "jsonrpc": "2.0", "id": 2, "method": "tools/call",
+        "params": {"name": tool_name, "arguments": args}
+    }, extra_headers={"mcp-session-id": session_id})
+
+    if status != 200:
+        return {"error": f"Gateway {status}: {result[:200]}", "tool": tool_name}
+    return {"tool": tool_name, "result": json.loads(result) if result else "empty"}
 
 
 def bridge_health_impl():
