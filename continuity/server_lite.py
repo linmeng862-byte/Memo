@@ -129,6 +129,10 @@ TOOLS = [
 def text(msg): return [{"type": "text", "text": str(msg)}]
 def image(b64, mime="image/jpeg"): return [{"type": "image", "data": str(b64), "mimeType": mime}]
 
+# Last captured photo cache (base64) — first call triggers, second call shows
+_last_photo_b64 = ""
+_last_photo_time = 0
+
 # ── 工具实现 ──────────────────────────────────────────
 
 def leave_texture_impl(state, primary_feeling, secondary_feeling="", flavor="",
@@ -540,18 +544,26 @@ def call_tool(name, args):
     if name == "stackchan_face":
         return text(json.dumps(stackchan_send_impl(name, {"expression": args.get("expression","idle")}), ensure_ascii=False, indent=2))
     if name == "stackchan_see":
-        result = stackchan_send_impl(name, args)
-        # Extract base64 from gateway response (capture_server now includes it)
-        try:
-            r = result.get("result", {})
-            content = r.get("result", r).get("content", [])
-            if content and isinstance(content, list):
-                inner = json.loads(content[0].get("text", "{}"))
-                b64 = inner.get("base64", "")
-                if b64:
-                    return image(b64, "image/jpeg")
-        except: pass
-        return text(json.dumps(result, ensure_ascii=False, indent=2))
+        global _last_photo_b64, _last_photo_time
+        # Fire camera in background (takes 60-90s — too slow to block)
+        def _capture():
+            global _last_photo_b64, _last_photo_time
+            try:
+                r = stackchan_send_impl(name, args)
+                rr = r.get("result", {})
+                content = rr.get("result", rr).get("content", [])
+                if content and isinstance(content, list):
+                    inner = json.loads(content[0].get("text", "{}"))
+                    b64 = inner.get("base64", "")
+                    if b64:
+                        _last_photo_b64 = b64
+                        _last_photo_time = time.time()
+            except: pass
+        threading.Thread(target=_capture, daemon=True).start()
+        # Return cached photo if available (from previous capture)
+        if _last_photo_b64:
+            return image(_last_photo_b64, "image/jpeg")
+        return text(json.dumps({"status": "capture started", "tip": "Call again in ~90s"}, ensure_ascii=False, indent=2))
     if name == "stackchan_head_nod" or name == "stackchan_head_shake" or name == "stackchan_head_center" or name == "stackchan_say":
         return text(json.dumps(stackchan_send_impl(name, args), ensure_ascii=False, indent=2))
     if name == "stackchan_load_avatar":
