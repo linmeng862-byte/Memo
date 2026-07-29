@@ -127,6 +127,7 @@ TOOLS = [
 ]
 
 def text(msg): return [{"type": "text", "text": str(msg)}]
+def image(b64, mime="image/jpeg"): return [{"type": "image", "data": str(b64), "mimeType": mime}]
 
 # ── 工具实现 ──────────────────────────────────────────
 
@@ -538,7 +539,20 @@ def call_tool(name, args):
         return text(json.dumps(read_body_impl(include_photo), ensure_ascii=False, indent=2))
     if name == "stackchan_face":
         return text(json.dumps(stackchan_send_impl(name, {"expression": args.get("expression","idle")}), ensure_ascii=False, indent=2))
-    if name == "stackchan_head_nod" or name == "stackchan_head_shake" or name == "stackchan_head_center" or name == "stackchan_see" or name == "stackchan_say":
+    if name == "stackchan_see":
+        result = stackchan_send_impl(name, args)
+        # Extract base64 from gateway response → display as image in app
+        try:
+            r = result.get("result", {})
+            content = r.get("result", r).get("content", [])
+            if content and isinstance(content, list):
+                inner = json.loads(content[0].get("text", "{}"))
+                b64 = inner.get("base64", "")
+                if b64:
+                    return image(b64, "image/jpeg")
+        except: pass
+        return text(json.dumps(result, ensure_ascii=False, indent=2))
+    if name == "stackchan_head_nod" or name == "stackchan_head_shake" or name == "stackchan_head_center" or name == "stackchan_say":
         return text(json.dumps(stackchan_send_impl(name, args), ensure_ascii=False, indent=2))
     if name == "stackchan_load_avatar":
         return text(json.dumps(stackchan_send_impl("load_avatar_set", {
