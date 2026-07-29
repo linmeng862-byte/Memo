@@ -359,7 +359,7 @@ def stackchan_send_impl(tool_name, args=None):
     gw_tool = tool_name  # 直接用我们的工具名
     # load_avatar_set 需要更长超时——ESP32要下载.raw文件
     # take_photo 也需要——摄像头拍照+AI描述要时间
-    conn_timeout = 140 if tool_name == "load_avatar_set" else 45 if tool_name == "take_photo" else 20
+    conn_timeout = 140 if tool_name == "load_avatar_set" else 90 if tool_name == "take_photo" else 20
     import urllib.request
 
     def _mcp_post(body_dict, extra_headers=None):
