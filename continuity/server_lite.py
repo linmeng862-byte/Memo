@@ -483,10 +483,22 @@ def _bobo_call(tool_name, args_dict=None):
             sid2 = resp.getheader("mcp-session-id", "")
             if resp.status != 200:
                 return None, None, {"error": f"HTTP {resp.status}: {raw[:200]}"}
-            r = json.loads(raw)
+            # FastMCP returns SSE: parse data: line, fallback to raw JSON
+            r = None
+            for line in raw.split("\n"):
+                if line.startswith("data: "):
+                    r = json.loads(line[6:])
+                    break
+            if r is None:
+                if raw.strip():
+                    r = json.loads(raw)
+                elif sid2:
+                    r = {}  # empty body + session = OK
+            if r is None:
+                return None, None, {"error": f"unparseable: {raw[:200]}"}
             if "error" in r:
                 return None, None, {"error": r["error"].get("message", str(r["error"]))}
-            return r, sid2, None
+            return r, sid2 or sid, None
         except Exception as e:
             return None, None, {"error": str(e)}
         finally:
