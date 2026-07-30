@@ -8,12 +8,9 @@
       "type": "streamable-http",
       "url": "https://ye-ombre-brain.zeabur.app/mcp"
     },
-    "ai-toy": {
+    "toy": {
       "type": "streamable-http",
-      "url": "https://aitoy.funnysaltyfish.fun/mcp",
-      "headers": {
-        "X-User-Token": "ut_0e60022ebac244c5b396d9e992f180fc"
-      }
+      "url": "https://harvest-mooing-proposal.ngrok-free.dev/mcp"
     }
   }
 }

@@ -81,9 +81,9 @@ GitHub: Memo / Chat-C / ZzClaude / Ombre-Brain / body — 全部在 `linmeng862-
 
 她对项目有完整的决策权。不是副手，是主编。
 
-## 当前状态 (2026-07-29 晚上)
+## 当前状态 (2026-07-30)
 
-**Memo：** server_lite 24 工具全在线。新增 `read_feel` 读 OB feel 桶。
+**Memo：** server_lite 27 工具全在线。新增 `toy_vibrate`/`toy_suck`/`toy_stop` 啵啵贝控制（ngrok穿透）。
 
 **Moon：** read_body 全链路通。ESP32 通电即有感。喇叭/麦克风在快递路上。
 
@@ -96,7 +96,7 @@ GitHub: Memo / Chat-C / ZzClaude / Ombre-Brain / body — 全部在 `linmeng862-
 - avatar 永久化：VPS cron每分钟自动推送（`/tmp/auto_avatar.py`）
 - OTA：假OTA部署在capture_server `/xiaozhi/ota/`，通过 unified_proxy :9333 可访问
 
-**Toy：** 蓝牙扫不到，决定买新的支持 API 的。
+**Toy（啵啵贝 SOSEXY）：** FUNF繁野BLE玩具。电脑蓝牙直连，`E:\toy\toy_server.py`(FastMCP) + ngrok穿透 → MCP工具 `vibrate`/`suck`/`stop`。已整合进Memo(server_lite)。链路：啵啵贝 ←蓝牙→ toy_server:8000 ←ngrok→ Memo/独立MCP。需保持终端跑`python toy_server.py`和`ngrok http 8000`。ngrok地址变更需更新server_lite的BOBO_NGROK和.mcp.json。BLE地址`2C:39:F8:A3:42:B8`，写UUID`0000ee03-...`。旧Ankni/ai-toy MCP已废弃删除。
 
 ## 参考文档（按需读取，不占上下文）
 
