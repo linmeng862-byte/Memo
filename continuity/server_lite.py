@@ -28,6 +28,7 @@ DEFAULT_PORT = int(os.environ.get("PORT", "8001"))
 ANKNI_VPS = "http://101.42.54.149:8777"
 ANKNI_SECRET = os.environ.get("ANKNI_SECRET", "hzdlZ9pQHSN2qPxY3Xv8mKfR7wJ4bTgC")
 OB_MCP_URL = os.environ.get("OB_MCP_URL", "https://ye-ombre-brain.zeabur.app/mcp")
+BOBO_NGROK = os.environ.get("BOBO_NGROK", "https://harvest-mooing-proposal.ngrok-free.dev")
 
 # ── OB 桥接 ─────────────────────────────────────────
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -116,12 +117,11 @@ TOOLS = [
     T("stackchan_see", "让StackChan拍照并返回照片。"),
     T("stackchan_say", "让StackChan说话。网关TTS合成语音从喇叭播放。",
       {"text": S}),
-    T("toy_connect", "连接粥粥的 Ankni 双马达玩具。token 来自分享链接 https://www.monsterparty.cn/remote/<TOKEN>。每个 token 一次性使用。",
-      {"token": S}, ["token"]),
-    T("toy_vibrate", "控制玩具。intensity: 震动强度 0-100。suck: 吸力强度 0-100（仅双马达，省略则统一用 intensity）。duration: 持续秒数后自停，0=保持到下次指令。",
-      {"intensity": I, "duration": {"type": "number"}, "suck": I}),
-    T("toy_stop", "立即停止玩具所有马达。"),
-    T("toy_status", "查看玩具连接状态。"),
+    T("toy_connect", "[已废弃-旧Ankni] 使用 toy_vibrate/toy_suck/toy_stop。", {"token": S}),
+    T("toy_vibrate", "啵啵贝震动。intensity: 强度 0-100。", {"intensity": I}),
+    T("toy_suck", "啵啵贝吮吸。intensity: 强度 0-100。", {"intensity": I}),
+    T("toy_stop", "停止啵啵贝所有功能。"),
+    T("toy_status", "啵啵贝连接状态 (ngrok)。"),
     T("stackchan_load_avatar", "加载自定义avatar到CoreS3。archive_path: VPS上.raw文件路径。mode: layered(14帧/525KB)或matrix(90帧/3.3MB)。timeout默认120秒。",
       {"archive_path": S, "mode": S, "timeout": {"type": "number"}}, ["archive_path", "mode"]),
 ]
@@ -459,6 +459,40 @@ def _ankni_get(endpoint):
     except Exception as e:
         return {"error": str(e)}
 
+
+def _bobo_call(tool_name, args_dict=None):
+    """Call bobo MCP via ngrok tunnel."""
+    import http.client
+    from urllib.parse import urlparse
+    url = urlparse(BOBO_NGROK)
+    conn = http.client.HTTPSConnection(url.hostname, url.port or 443, timeout=30)
+    try:
+        body = {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                "params": {"name": tool_name, "arguments": args_dict or {}}}
+        data = json.dumps(body)
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+            "ngrok-skip-browser-warning": "1"
+        }
+        conn.request("POST", "/mcp", body=data, headers=headers)
+        resp = conn.getresponse()
+        result = resp.read().decode()
+        if resp.status != 200:
+            return {"error": f"HTTP {resp.status}: {result[:200]}"}
+        r = json.loads(result)
+        if "error" in r:
+            return {"error": r["error"].get("message", str(r["error"]))}
+        cnt = r.get("result", {}).get("content", [])
+        if cnt and len(cnt) > 0:
+            return {"text": cnt[0].get("text", str(cnt))}
+        return {"text": str(r)}
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        try: conn.close()
+        except: pass
+
 def toy_connect_impl(token):
     r = _ankni_post("/connect", {"token": token})
     if r.get("connected"):
@@ -467,20 +501,27 @@ def toy_connect_impl(token):
     return f"❌ 连接失败: {r.get('error', r)}"
 
 def toy_vibrate_impl(intensity, duration=0.0, suck=-1):
+    """bobo vibrate"""
     intensity = max(0, min(100, intensity))
-    body = {"intensity": str(intensity), "duration": str(duration)}
-    if suck >= 0:
-        body["suck"] = str(max(0, min(100, suck)))
-    r = _ankni_post("/vibrate", body)
-    if r.get("sent"):
-        return f"✅ 已发送: {r.get('desc','')} | {r.get('duration','')}"
-    return f"❌ 发送失败: {r.get('error', r)}"
+    r = _bobo_call("vibrate", {"intensity": intensity})
+    if r.get("text"):
+        return f"bobo: {r['text']}"
+    return f"bobo vibrate fail: {r.get('error', r)}"
+
+def toy_suck_impl(intensity):
+    """bobo suck"""
+    intensity = max(0, min(100, intensity))
+    r = _bobo_call("suck", {"intensity": intensity})
+    if r.get("text"):
+        return f"bobo: {r['text']}"
+    return f"bobo suck fail: {r.get('error', r)}"
 
 def toy_stop_impl():
-    r = _ankni_post("/stop", {})
-    if r.get("stopped"):
-        return "✅ 已停止"
-    return f"❌ 停止失败: {r.get('error', r)}"
+    """bobo stop"""
+    r = _bobo_call("stop", {})
+    if r.get("text"):
+        return f"bobo: {r['text']}"
+    return f"bobo stop fail: {r.get('error', r)}"
 
 def toy_status_impl():
     r = _ankni_get("/status")
@@ -579,7 +620,9 @@ def call_tool(name, args):
     if name == "toy_connect":
         return text(toy_connect_impl(args.get("token", "")))
     if name == "toy_vibrate":
-        return text(toy_vibrate_impl(args.get("intensity", 50), args.get("duration", 0.0), args.get("suck", -1)))
+        return text(toy_vibrate_impl(args.get("intensity", 50), 0.0, -1))
+    if name == "toy_suck":
+        return text(toy_suck_impl(args.get("intensity", 50)))
     if name == "toy_stop":
         return text(toy_stop_impl())
     if name == "toy_status":
