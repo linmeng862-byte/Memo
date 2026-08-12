@@ -1,0 +1,31 @@
+{
+  "mcpServers": {
+    "continuity-engine": {
+      "type": "streamable-http",
+      "url": "https://zzloveclaude.zeabur.app/mcp"
+    },
+    "toy": {
+      "type": "streamable-http",
+      "url": "https://harvest-mooing-proposal.ngrok-free.dev/mcp"
+    },
+    "nowhere": {
+      "type": "streamable-http",
+      "url": "https://travelwithme.zeabur.app/mcp"
+    },
+    "nocturne-engine": {
+      "type": "streamable-http",
+      "url": "https://core.zeabur.app/mcp"
+    },
+    "cyberboss_tools": {
+      "command": "D:\\node\\node.exe",
+      "args": [
+        "E:\\cyberboss-main\\bin\\cyberboss.js",
+        "tool-mcp-server",
+        "--runtime-id",
+        "claudecode",
+        "--workspace-root",
+        "C:/Users/123/.claude/projects/C--Users-123"
+      ]
+    }
+  }
+}

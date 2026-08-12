@@ -1,16 +1,47 @@
 {
   "mcpServers": {
+    "cyberboss_tools": {
+      "command": "D:\\node\\node.exe",
+      "args": [
+        "E:\\cyberboss-main\\bin\\cyberboss.js",
+        "tool-mcp-server",
+        "--runtime-id",
+        "claudecode",
+        "--workspace-root",
+        "C:/Users/123/.claude/projects/C--Users-123"
+      ]
+    },
     "continuity-engine": {
-      "type": "streamable-http",
+      "type": "http",
       "url": "https://zzloveclaude.zeabur.app/mcp"
     },
-    "ombre-brain": {
-      "type": "streamable-http",
-      "url": "https://ye-ombre-brain.zeabur.app/mcp"
+    "nocturne-engine": {
+      "type": "http",
+      "url": "https://core.zeabur.app/mcp"
     },
     "toy": {
-      "type": "streamable-http",
+      "type": "http",
       "url": "https://harvest-mooing-proposal.ngrok-free.dev/mcp"
+    },
+    "nowhere": {
+      "type": "http",
+      "url": "https://travelwithme.zeabur.app/mcp"
+    },
+    "fishing": {
+      "type": "http",
+      "url": "http://127.0.0.1:3458/mcp"
+    },
+    "stella": {
+      "type": "http",
+      "url": "http://127.0.0.1:3459/mcp"
+    },
+    "open-watch-cinema": { "command": "node", "args": ["E:/open-watch-cinema-main/open-watch-cinema-main/mcp/server.mjs"] },
+    "galatea-garden": {
+      "type": "http",
+      "url": "https://galatea.abysslumina.com/mcp",
+      "headers": {
+        "Authorization": "Bearer gg_ucZjAN9sdwXFPfTzXmsA1W_uwynqRRMdegUSc_174sw"
+      }
     }
   }
 }
