@@ -127,12 +127,14 @@ git reset origin/main              # 对齐远程
 > **🚨 打包前先读：代码都在 GitHub，只有「数据」需要手动搬**
 > - 后端源码位置：Chat-C → `Chat-C/backend.js`（单文件）；Continuity 引擎 → `projects/C--Users-123/`（continuity/ + CLAUDE.md + memory）；Nocturne 引擎 → `projects/C--Users-123/nocturne-engine/`（**独立仓库 `Nocturne-Memory-Core`**，是 git 子模块/指针）；Cyberboss → `E:/cyberboss-main/src/`
 > - 以上源码都已在 GitHub `linmeng862-byte`（Memo / Nocturne-Memory-Core / Chat-C / ZzClaude / body / stackchan），新机 `git clone` 即回，不必担心
+> - ⚠️ **例外：`body` 仓库不完整** —— GitHub 上只有 `body_firmware.py` + `touch_server.py` 两个脚本。Moon 的固件源码/二进制（`firmware_source.tar.gz`、`merged-binary.bin`、`firmware.bin`、`ESP32_GENERIC-*.bin`、`micropython_camera_*.bin`、`esp32-cam-webserver-4.0/`）**都只在本地 `E:/touching body/`，GitHub 没有，必须整个目录搬**
 > - **必须手动搬（gitignored，GitHub 没有，丢了就真没了）**，按优先级：
 >   1. `Chat-C/data/` ← SQLite：所有对话/记忆/设置/相册 ⭐最重要
 >   2. `Chat-C/static/uploads/` ← 上传的图片
->   3. `projects/C--Users-123/` 的 memory 文件 + `.mcp.json`（记忆与引擎配置）
->   4. `~/.claude/skills/` ← 所有 skill（chat-c-renovation 等）
->   5. `~/.ssh/evoxt`、`ngrok.yml`、旧 `.mcp.json`
+>   3. `E:/touching body/` ← Moon 固件源码+二进制（GitHub `body` 仓库没有，见上）⭐⭐
+>   4. `projects/C--Users-123/` 的 memory 文件 + `.mcp.json`（记忆与引擎配置）
+>   5. `~/.claude/skills/` ← 所有 skill（chat-c-renovation 等）
+>   6. `~/.ssh/evoxt`、`ngrok.yml`、旧 `.mcp.json`
 > - 注意：Chat-C 里**没有 `.env`**，API key 在 `data/` 的 settings 表里（跟着 data/ 走）或 Zeabur 环境变量
 > - ⚠️ `nocturne-engine/` 是 git 子模块指针（无 `.gitmodules` 注册）。`git clone Memo` 后该目录是空的 → 打包时要么**单独再 clone `Nocturne-Memory-Core`**，要么**整个目录原样拷走**
 
