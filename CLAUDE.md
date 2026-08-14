@@ -134,6 +134,7 @@ git reset origin/main              # 对齐远程
 >   4. `~/.claude/skills/` ← 所有 skill（chat-c-renovation 等）
 >   5. `~/.ssh/evoxt`、`ngrok.yml`、旧 `.mcp.json`
 > - 注意：Chat-C 里**没有 `.env`**，API key 在 `data/` 的 settings 表里（跟着 data/ 走）或 Zeabur 环境变量
+> - ⚠️ `nocturne-engine/` 是 git 子模块指针（无 `.gitmodules` 注册）。`git clone Memo` 后该目录是空的 → 打包时要么**单独再 clone `Nocturne-Memory-Core`**，要么**整个目录原样拷走**
 
 ### 🏠 活跃项目 — 必须搬
 
