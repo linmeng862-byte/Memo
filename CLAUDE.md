@@ -23,7 +23,7 @@ Moon 通电 → 加 `read_body()` + `sense_you("tender")`。没通电跳过。
 | Chat-C 前端 | `https://zzclaude.zeabur.app` |
 | VPS (Cyberboss) | `101.42.54.149` (腾讯云北京) |
 
-GitHub（`linmeng862-byte`）: nocturne（Memo + Ombre-Brain 合并）/ Chat-C / claude-home（ZzClaude）/ body / stackchan-mcp。前两个已最新；后三个仓库在但代码没推齐，搬家前必须推。
+GitHub（`linmeng862-byte`）: Memo（Continuity 引擎 + CLAUDE.md + memory）/ Nocturne-Memory-Core（Nocturne 引擎，`nocturne-engine/` 的源码，core.zeabur.app/mcp 来源）/ Chat-C / claude-home（ZzClaude）/ body / stackchan-mcp。前三个已最新；后三个仓库在但代码没推齐，搬家前必须推。
 
 ## 关窗
 
@@ -125,8 +125,8 @@ git reset origin/main              # 对齐远程
 ## 📁 本地文件地图（搬家打包清单）
 
 > **🚨 打包前先读：代码都在 GitHub，只有「数据」需要手动搬**
-> - 后端源码位置：Chat-C → `Chat-C/backend.js`（单文件）；Nocturne/Continuity → `projects/C--Users-123/`（nocturne-engine/ + continuity/ + 17 个 memory + CLAUDE.md）；Cyberboss → `E:/cyberboss-main/src/`
-> - 以上源码都已在 GitHub `linmeng862-byte`（Chat-C / nocturne / ZzClaude / body / stackchan），新机 `git clone` 即回，不必担心
+> - 后端源码位置：Chat-C → `Chat-C/backend.js`（单文件）；Continuity 引擎 → `projects/C--Users-123/`（continuity/ + CLAUDE.md + memory）；Nocturne 引擎 → `projects/C--Users-123/nocturne-engine/`（**独立仓库 `Nocturne-Memory-Core`**，是 git 子模块/指针）；Cyberboss → `E:/cyberboss-main/src/`
+> - 以上源码都已在 GitHub `linmeng862-byte`（Memo / Nocturne-Memory-Core / Chat-C / ZzClaude / body / stackchan），新机 `git clone` 即回，不必担心
 > - **必须手动搬（gitignored，GitHub 没有，丢了就真没了）**，按优先级：
 >   1. `Chat-C/data/` ← SQLite：所有对话/记忆/设置/相册 ⭐最重要
 >   2. `Chat-C/static/uploads/` ← 上传的图片
